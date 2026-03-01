@@ -1,70 +1,82 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>User App</title>
 
   <style>
     :root{
-      --bg:#f3f5f8;
-      --card:#ffffff;
-      --text:#0c1222;
-      --muted:#5c647a;
-      --border:rgba(15,23,42,.12);
-      --shadow:0 10px 30px rgba(15,23,42,.10);
-      --danger:#ef4444;
-      --primary:#3b82f6;
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --panel2:#0f1730;
+      --text:#eaf0ff;
+      --muted:#a7b2d6;
+      --border:rgba(255,255,255,.12);
+      --shadow:0 18px 45px rgba(0,0,0,.40);
+      --blue:#3b82f6;
+      --cyan:#22d3ee;
+      --green:#22c55e;
+      --red:#ef4444;
     }
+
     *{box-sizing:border-box}
     body{
       margin:0;
-      font-family: Arial, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background:var(--bg);
       color:var(--text);
       height:100vh;
-      overflow:hidden; /* important: iframe takes screen */
+      overflow:hidden;
     }
 
-    /* Slim static header */
+    /* Fixed header (small height) */
     header{
       position:fixed;
       top:0; left:0; right:0;
-      height:56px;
-      z-index:50;
-      background:var(--card);
+      height:58px;
+      z-index:100;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+      box-shadow: 0 2px 10px rgba(0,0,0,.25);
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
       padding:8px 10px;
-      border-bottom:1px solid var(--border);
-      box-shadow:0 2px 10px rgba(0,0,0,.06);
     }
 
     .left{
       display:flex;
       flex-direction:column;
-      min-width:0;
       gap:2px;
+      min-width:0;
     }
 
     .helloBtn{
       all:unset;
       cursor:pointer;
-      font-weight:900;
-      font-size:16px;
-      line-height:1.1;
+      font-weight:950;
+      font-size:15px;
+      line-height:1.15;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
       max-width:55vw;
+      padding:6px 10px;
+      border-radius:12px;
+      border:1px solid transparent;
     }
-    .helloBtn:hover{ text-decoration: underline; }
+    .helloBtn:hover{
+      border-color: var(--border);
+      background: color-mix(in srgb, var(--panel2) 70%, transparent);
+    }
 
     .sub{
-      font-size:12px;
+      font-size:11px;
       color:var(--muted);
+      padding-left:10px;
       line-height:1;
     }
 
@@ -81,30 +93,32 @@
       padding:0 12px;
       border-radius:12px;
       border:1px solid var(--border);
-      background:#fff;
+      background: color-mix(in srgb, var(--panel2) 70%, transparent);
+      color:var(--text);
       font-size:14px;
       outline:none;
     }
     select{
-      min-width:140px;
-      max-width:36vw;
+      min-width:150px;
+      max-width:40vw;
     }
 
+    button{
+      cursor:pointer;
+      font-weight:950;
+    }
     .logout{
       border:0;
-      background:var(--danger);
+      background: var(--red);
       color:#fff;
-      font-weight:900;
-      cursor:pointer;
       padding:0 14px;
     }
-    .logout:active{ transform: translateY(1px); }
+    button:active{ transform: translateY(1px); }
 
-    /* Full screen iframe area */
+    /* Full iframe area */
     .content{
       position:fixed;
-      top:56px; left:0; right:0; bottom:0;
-      background:transparent;
+      top:58px; left:0; right:0; bottom:0;
     }
     iframe{
       width:100%;
@@ -118,7 +132,7 @@
     .overlay{
       position:fixed;
       inset:0;
-      background: rgba(0,0,0,.35);
+      background: rgba(0,0,0,.55);
       display:none;
       align-items:center;
       justify-content:center;
@@ -129,7 +143,7 @@
 
     .modal{
       width:min(520px, 96vw);
-      background:var(--card);
+      background: color-mix(in srgb, var(--panel) 95%, transparent);
       border:1px solid var(--border);
       border-radius:18px;
       box-shadow: var(--shadow);
@@ -157,14 +171,15 @@
       width:38px;height:38px;
       border-radius:12px;
       border:1px solid var(--border);
-      background:#fff;
+      background: transparent;
+      color:var(--text);
       cursor:pointer;
-      font-weight:900;
+      font-weight:950;
     }
 
     .modalBody{ padding:14px; }
     .row{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
-    label{ font-size:12px; color:var(--muted); font-weight:700; }
+    label{ font-size:12px; color:var(--muted); font-weight:800; }
 
     input{
       height:40px;
@@ -173,11 +188,12 @@
       border:1px solid var(--border);
       font-size:14px;
       outline:none;
-      background:#fff;
+      background: color-mix(in srgb, var(--panel2) 75%, transparent);
+      color:var(--text);
     }
     input:focus{
-      border-color: rgba(59,130,246,.55);
-      box-shadow: 0 0 0 4px rgba(59,130,246,.15);
+      border-color: color-mix(in srgb, var(--blue) 55%, var(--border));
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 18%, transparent);
     }
 
     .help{
@@ -199,30 +215,31 @@
       padding:0 14px;
       border-radius:12px;
       border:1px solid var(--border);
-      background:#fff;
+      background: transparent;
       cursor:pointer;
-      font-weight:900;
+      font-weight:950;
+      color:var(--text);
     }
     .btnPrimary{
       border:0;
-      background: var(--primary);
-      color:#fff;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 86%, #fff), color-mix(in srgb, var(--cyan) 65%, #fff));
+      color:#081023;
     }
 
     .msg{
       margin-top:10px;
       font-size:12px;
       color:var(--muted);
+      min-height:18px;
     }
-    .ok{ color: #0f7a34; font-weight:900; }
-    .bad{ color: #b42318; font-weight:900; }
+    .ok{ color: var(--green); font-weight:950; }
+    .bad{ color: var(--red); font-weight:950; }
   </style>
 </head>
 
 <body>
   <header>
     <div class="left">
-      <!-- Click this to open profile -->
       <button class="helloBtn" id="helloBtn" title="Open profile">Hi, Loading…</button>
       <div class="sub">User App</div>
     </div>
@@ -254,12 +271,12 @@
 
       <div class="modalBody">
         <div class="row">
-          <label>Your User ID</label>
+          <label>User ID</label>
           <input id="profileUserId" type="text" readonly />
         </div>
 
         <div class="row">
-          <label>Your Username</label>
+          <label>Username</label>
           <input id="profileUsername" type="text" readonly />
         </div>
 
@@ -269,12 +286,13 @@
           <label>New Password (visible)</label>
           <input id="newPass" type="text" placeholder="Type new password" />
         </div>
+
         <div class="row">
           <label>Confirm Password (visible)</label>
           <input id="confirmPass" type="text" placeholder="Re-type new password" />
         </div>
 
-        <div class="help">Tip: Password is visible by default (as you requested). Make sure nobody is watching your screen.</div>
+        <div class="help">Password is visible (as you requested). Keep privacy when typing.</div>
 
         <div class="actions">
           <button class="btn" id="cancelBtn">Cancel</button>
@@ -292,21 +310,15 @@
 
   const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
   const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+  const $ = (id) => document.getElementById(id);
 
   async function apiGet(params){
     const qs = new URLSearchParams(params).toString();
     const res = await fetch(API_URL + "?" + qs, { cache:"no-store" });
     return res.json();
   }
-  async function apiPost(payload){
-    const res = await fetch(API_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    return res.json();
-  }
 
+  // Keep current user info
   let ME = { userId:"", username:"" };
 
   async function guard(){
@@ -324,81 +336,77 @@
     const userId = (r.principal && String(r.principal).trim()) ? String(r.principal).trim() : "";
 
     ME = { userId, username };
-
-    document.getElementById("helloBtn").textContent = "Hi, " + (username || ("User " + userId) || "User");
+    $("helloBtn").textContent = "Hi, " + (username || ("User " + userId) || "User");
   }
 
-  // Dropdown navigation
-  document.getElementById("feature").addEventListener("change", (e) => {
-    document.getElementById("frame").src = e.target.value;
+  // Feature dropdown loads iframe pages
+  $("feature").addEventListener("change", (e) => {
+    $("frame").src = e.target.value;
   });
 
-  // Logout
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
+  // Logout (GET)
+  $("logoutBtn").addEventListener("click", async () => {
     const token = getToken();
-    try { await apiPost({ action:"logout", token }); } catch(e) {}
+    try { await apiGet({ action:"logout", token }); } catch(e) {}
     clearToken();
     location.href="login.html";
   });
 
-  // Profile modal controls
-  const overlay = document.getElementById("overlay");
-  const openModal = () => { overlay.classList.add("open"); };
+  // Profile modal open/close
+  const overlay = $("overlay");
+  const openModal = () => overlay.classList.add("open");
   const closeModal = () => {
     overlay.classList.remove("open");
-    document.getElementById("msg").textContent = "";
-    document.getElementById("newPass").value = "";
-    document.getElementById("confirmPass").value = "";
+    $("msg").textContent = "";
+    $("newPass").value = "";
+    $("confirmPass").value = "";
   };
 
-  document.getElementById("helloBtn").addEventListener("click", () => {
-    document.getElementById("profileUserId").value = ME.userId || "";
-    document.getElementById("profileUsername").value = ME.username || "";
-    document.getElementById("profileSub").textContent = (ME.username ? `Logged in as ${ME.username}` : "Logged in");
+  $("helloBtn").addEventListener("click", () => {
+    $("profileUserId").value = ME.userId || "";
+    $("profileUsername").value = ME.username || "";
+    $("profileSub").textContent = ME.username ? `Logged in as ${ME.username}` : "Logged in";
     openModal();
   });
 
-  document.getElementById("closeModal").addEventListener("click", closeModal);
-  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+  $("closeModal").addEventListener("click", closeModal);
+  $("cancelBtn").addEventListener("click", closeModal);
   overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeModal(); });
 
-  // Save password
-  document.getElementById("savePassBtn").addEventListener("click", async () => {
-    const msg = document.getElementById("msg");
-    msg.textContent = "";
-    msg.className = "msg";
+  // Save password (GET) - WebView friendly
+  $("savePassBtn").addEventListener("click", async () => {
+    const p1 = $("newPass").value.trim();
+    const p2 = $("confirmPass").value.trim();
 
-    const p1 = document.getElementById("newPass").value;
-    const p2 = document.getElementById("confirmPass").value;
-
+    $("msg").className = "msg";
     if(!p1 || !p2){
-      msg.textContent = "Please type password in both fields.";
-      msg.classList.add("bad");
+      $("msg").textContent = "Please fill both password fields.";
+      $("msg").classList.add("bad");
       return;
     }
     if(p1.length < 4){
-      msg.textContent = "Password too short (minimum 4 characters).";
-      msg.classList.add("bad");
+      $("msg").textContent = "Password too short (min 4 characters).";
+      $("msg").classList.add("bad");
       return;
     }
     if(p1 !== p2){
-      msg.textContent = "Passwords do not match.";
-      msg.classList.add("bad");
+      $("msg").textContent = "Passwords do not match.";
+      $("msg").classList.add("bad");
       return;
     }
 
-    msg.textContent = "Saving…";
+    $("msg").textContent = "Saving…";
 
     const token = getToken();
-    const r = await apiPost({ action:"user_change_password", token, newPassword: p1 });
+    const r = await apiGet({ action:"user_change_password_get", token, newPassword: p1 });
 
     if(r && r.ok){
-      msg.textContent = "✅ Password updated successfully.";
-      msg.classList.add("ok");
-      setTimeout(closeModal, 800);
+      $("msg").textContent = "✅ Password updated successfully.";
+      $("msg").classList.add("ok");
+      setTimeout(closeModal, 900);
     }else{
-      msg.textContent = "❌ " + (r.error || "Failed to update password");
-      msg.classList.add("bad");
+      $("msg").textContent = "❌ " + (r.error || "Failed to update password");
+      $("msg").classList.add("bad");
     }
   });
 

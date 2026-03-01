@@ -1,0 +1,207 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <title>Admin App</title>
+  <style>
+    body{font-family:Arial;margin:0;background:#f4f6f8}
+    .wrap{max-width:1100px;margin:0 auto;padding:14px}
+    .card{background:#fff;border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-bottom:12px}
+    input,button{padding:10px;border-radius:10px;border:1px solid #ddd}
+    button{border:0;cursor:pointer}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .err{color:#b00020}
+    .ok{color:#0a7a2f}
+    .muted{color:#666;font-size:13px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card" id="loginBox">
+    <h2 style="margin-top:0">Admin Login</h2>
+    <div class="row">
+      <input id="auser" placeholder="Admin username">
+      <input id="apass" placeholder="Admin password" type="password">
+      <button id="loginBtn">Login</button>
+    </div>
+    <div id="lmsg" class="muted"></div>
+  </div>
+
+  <div class="card" id="panel" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <div><b>Admin Panel</b></div>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="card" id="createBox" style="display:none">
+    <h3 style="margin-top:0">Create User</h3>
+    <div class="row">
+      <input id="newId" placeholder="User ID (ex: 1001)">
+      <input id="newUser" placeholder="Username (name)">
+      <input id="newPass" placeholder="Initial password">
+      <button id="createBtn">Create</button>
+    </div>
+    <div id="cmsg" class="muted"></div>
+  </div>
+
+  <div class="card" id="resetBox" style="display:none">
+    <h3 style="margin-top:0">Reset User Password</h3>
+    <div class="row">
+      <input id="resetId" placeholder="User ID">
+      <input id="resetPass" placeholder="New password">
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div id="rmsg" class="muted"></div>
+  </div>
+
+  <div class="card" id="listBox" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Users List</h3>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+    <div style="overflow:auto;margin-top:10px">
+      <table>
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>Username</th>
+            <th>Active</th>
+            <th>Created</th>
+            <th>Last Login</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="umsg" class="muted"></div>
+  </div>
+
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+  const key = "ADMIN_TOKEN";
+
+  const setToken = t => localStorage.setItem(key,t);
+  const getToken = () => localStorage.getItem(key)||"";
+  const clearToken = () => localStorage.removeItem(key);
+
+  async function apiPost(payload){
+    const res = await fetch(API_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+  async function apiGet(params){
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(API_URL + "?" + qs);
+    return res.json();
+  }
+
+  const show = (id, yes) => document.getElementById(id).style.display = yes ? "" : "none";
+  const msg = (id, t, cls="muted") => {
+    const el = document.getElementById(id);
+    el.className = cls;
+    el.textContent = t;
+  };
+
+  async function openPanel(){
+    show("loginBox", false);
+    show("panel", true);
+    show("createBox", true);
+    show("resetBox", true);
+    show("listBox", true);
+    await loadUsers();
+  }
+
+  async function guard(){
+    const token = getToken();
+    if(!token) return;
+    const r = await apiGet({ action:"me", token });
+    if(r.ok && r.type === "admin") await openPanel();
+    else clearToken();
+  }
+
+  async function loadUsers(){
+    msg("umsg","Loading...");
+    const r = await apiGet({ action:"admin_list_users", token: getToken() });
+    if(!r.ok){ msg("umsg", r.error || "Failed", "err"); return; }
+
+    const tb = document.getElementById("tbody");
+    tb.innerHTML = "";
+    r.users.forEach(u=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${u.userId}</td>
+        <td>${u.username}</td>
+        <td>${u.isActive ? "TRUE" : "FALSE"}</td>
+        <td>${u.createdAt || ""}</td>
+        <td>${u.lastLoginAt || ""}</td>
+      `;
+      tb.appendChild(tr);
+    });
+    msg("umsg", `Loaded ${r.users.length} users`, "ok");
+  }
+
+  document.getElementById("loginBtn").onclick = async () => {
+    msg("lmsg","Logging in...");
+    const r = await apiPost({
+      action:"admin_login",
+      username: document.getElementById("auser").value,
+      password: document.getElementById("apass").value
+    });
+    if(!r.ok){ msg("lmsg", r.error || "Login failed", "err"); return; }
+    setToken(r.token);
+    await openPanel();
+  };
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await apiPost({ action:"logout", token: getToken() });
+    clearToken();
+    location.reload();
+  };
+
+  document.getElementById("refreshBtn").onclick = loadUsers;
+
+  document.getElementById("createBtn").onclick = async () => {
+    msg("cmsg","Creating...");
+    const r = await apiPost({
+      action:"admin_create_user",
+      token: getToken(),
+      userId: document.getElementById("newId").value,
+      username: document.getElementById("newUser").value,
+      password: document.getElementById("newPass").value
+    });
+    if(!r.ok){ msg("cmsg", r.error || "Failed", "err"); return; }
+    msg("cmsg","User created", "ok");
+    document.getElementById("newId").value = "";
+    document.getElementById("newUser").value = "";
+    document.getElementById("newPass").value = "";
+    await loadUsers();
+  };
+
+  document.getElementById("resetBtn").onclick = async () => {
+    msg("rmsg","Resetting...");
+    const r = await apiPost({
+      action:"admin_reset_password",
+      token: getToken(),
+      userId: document.getElementById("resetId").value,
+      newPassword: document.getElementById("resetPass").value
+    });
+    if(!r.ok){ msg("rmsg", r.error || "Failed", "err"); return; }
+    msg("rmsg","Password reset done", "ok");
+    document.getElementById("resetId").value = "";
+    document.getElementById("resetPass").value = "";
+  };
+
+  guard();
+</script>
+</body>
+</html>

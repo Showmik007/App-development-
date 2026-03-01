@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>User App</title>
+
+  <style>
+    :root{
+      --bg:#f3f5f8;
+      --card:#ffffff;
+      --text:#0c1222;
+      --muted:#5c647a;
+      --border:rgba(15,23,42,.12);
+      --shadow:0 10px 30px rgba(15,23,42,.10);
+      --danger:#ef4444;
+      --primary:#3b82f6;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      height:100vh;
+      overflow:hidden; /* important: iframe takes screen */
+    }
+
+    /* Slim static header */
+    header{
+      position:fixed;
+      top:0; left:0; right:0;
+      height:56px;
+      z-index:50;
+      background:var(--card);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      border-bottom:1px solid var(--border);
+      box-shadow:0 2px 10px rgba(0,0,0,.06);
+    }
+
+    .left{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+      gap:2px;
+    }
+
+    .helloBtn{
+      all:unset;
+      cursor:pointer;
+      font-weight:900;
+      font-size:16px;
+      line-height:1.1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:55vw;
+    }
+    .helloBtn:hover{ text-decoration: underline; }
+
+    .sub{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1;
+    }
+
+    .right{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap:nowrap;
+    }
+
+    select, button{
+      height:38px;
+      padding:0 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-size:14px;
+      outline:none;
+    }
+    select{
+      min-width:140px;
+      max-width:36vw;
+    }
+
+    .logout{
+      border:0;
+      background:var(--danger);
+      color:#fff;
+      font-weight:900;
+      cursor:pointer;
+      padding:0 14px;
+    }
+    .logout:active{ transform: translateY(1px); }
+
+    /* Full screen iframe area */
+    .content{
+      position:fixed;
+      top:56px; left:0; right:0; bottom:0;
+      background:transparent;
+    }
+    iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      background:#fff;
+      display:block;
+    }
+
+    /* Profile modal */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.35);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+      padding:16px;
+    }
+    .overlay.open{ display:flex; }
+
+    .modal{
+      width:min(520px, 96vw);
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding:14px 14px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modalTitle{
+      font-weight:950;
+      font-size:16px;
+      margin:0;
+    }
+    .modalSub{
+      margin-top:4px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .xbtn{
+      width:38px;height:38px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      font-weight:900;
+    }
+
+    .modalBody{ padding:14px; }
+    .row{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    label{ font-size:12px; color:var(--muted); font-weight:700; }
+
+    input{
+      height:40px;
+      padding:0 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      font-size:14px;
+      outline:none;
+      background:#fff;
+    }
+    input:focus{
+      border-color: rgba(59,130,246,.55);
+      box-shadow: 0 0 0 4px rgba(59,130,246,.15);
+    }
+
+    .help{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:-6px;
+      margin-bottom:10px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      margin-top:8px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      height:40px;
+      padding:0 14px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      font-weight:900;
+    }
+    .btnPrimary{
+      border:0;
+      background: var(--primary);
+      color:#fff;
+    }
+
+    .msg{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .ok{ color: #0f7a34; font-weight:900; }
+    .bad{ color: #b42318; font-weight:900; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="left">
+      <!-- Click this to open profile -->
+      <button class="helloBtn" id="helloBtn" title="Open profile">Hi, Loading…</button>
+      <div class="sub">User App</div>
+    </div>
+
+    <div class="right">
+      <select id="feature" title="Select feature">
+        <option value="home.html">Home</option>
+        <option value="feature1.html">Feature 1</option>
+        <option value="feature2.html">Feature 2</option>
+      </select>
+      <button class="logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div class="content">
+    <iframe id="frame" src="home.html"></iframe>
+  </div>
+
+  <!-- Profile modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modalHead">
+        <div>
+          <div class="modalTitle">Profile</div>
+          <div class="modalSub" id="profileSub">Loading…</div>
+        </div>
+        <button class="xbtn" id="closeModal">✕</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="row">
+          <label>Your User ID</label>
+          <input id="profileUserId" type="text" readonly />
+        </div>
+
+        <div class="row">
+          <label>Your Username</label>
+          <input id="profileUsername" type="text" readonly />
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+
+        <div class="row">
+          <label>New Password (visible)</label>
+          <input id="newPass" type="text" placeholder="Type new password" />
+        </div>
+        <div class="row">
+          <label>Confirm Password (visible)</label>
+          <input id="confirmPass" type="text" placeholder="Re-type new password" />
+        </div>
+
+        <div class="help">Tip: Password is visible by default (as you requested). Make sure nobody is watching your screen.</div>
+
+        <div class="actions">
+          <button class="btn" id="cancelBtn">Cancel</button>
+          <button class="btn btnPrimary" id="savePassBtn">Save Password</button>
+        </div>
+
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+  const TOKEN_KEY = "USER_TOKEN";
+
+  const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
+  const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+
+  async function apiGet(params){
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(API_URL + "?" + qs, { cache:"no-store" });
+    return res.json();
+  }
+  async function apiPost(payload){
+    const res = await fetch(API_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  let ME = { userId:"", username:"" };
+
+  async function guard(){
+    const token = getToken();
+    if(!token){ location.href="login.html"; return; }
+
+    const r = await apiGet({ action:"me", token });
+    if(!r.ok || r.type !== "user"){
+      clearToken();
+      location.href="login.html";
+      return;
+    }
+
+    const username = (r.username && String(r.username).trim()) ? String(r.username).trim() : "";
+    const userId = (r.principal && String(r.principal).trim()) ? String(r.principal).trim() : "";
+
+    ME = { userId, username };
+
+    document.getElementById("helloBtn").textContent = "Hi, " + (username || ("User " + userId) || "User");
+  }
+
+  // Dropdown navigation
+  document.getElementById("feature").addEventListener("change", (e) => {
+    document.getElementById("frame").src = e.target.value;
+  });
+
+  // Logout
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    const token = getToken();
+    try { await apiPost({ action:"logout", token }); } catch(e) {}
+    clearToken();
+    location.href="login.html";
+  });
+
+  // Profile modal controls
+  const overlay = document.getElementById("overlay");
+  const openModal = () => { overlay.classList.add("open"); };
+  const closeModal = () => {
+    overlay.classList.remove("open");
+    document.getElementById("msg").textContent = "";
+    document.getElementById("newPass").value = "";
+    document.getElementById("confirmPass").value = "";
+  };
+
+  document.getElementById("helloBtn").addEventListener("click", () => {
+    document.getElementById("profileUserId").value = ME.userId || "";
+    document.getElementById("profileUsername").value = ME.username || "";
+    document.getElementById("profileSub").textContent = (ME.username ? `Logged in as ${ME.username}` : "Logged in");
+    openModal();
+  });
+
+  document.getElementById("closeModal").addEventListener("click", closeModal);
+  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+  overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeModal(); });
+
+  // Save password
+  document.getElementById("savePassBtn").addEventListener("click", async () => {
+    const msg = document.getElementById("msg");
+    msg.textContent = "";
+    msg.className = "msg";
+
+    const p1 = document.getElementById("newPass").value;
+    const p2 = document.getElementById("confirmPass").value;
+
+    if(!p1 || !p2){
+      msg.textContent = "Please type password in both fields.";
+      msg.classList.add("bad");
+      return;
+    }
+    if(p1.length < 4){
+      msg.textContent = "Password too short (minimum 4 characters).";
+      msg.classList.add("bad");
+      return;
+    }
+    if(p1 !== p2){
+      msg.textContent = "Passwords do not match.";
+      msg.classList.add("bad");
+      return;
+    }
+
+    msg.textContent = "Saving…";
+
+    const token = getToken();
+    const r = await apiPost({ action:"user_change_password", token, newPassword: p1 });
+
+    if(r && r.ok){
+      msg.textContent = "✅ Password updated successfully.";
+      msg.classList.add("ok");
+      setTimeout(closeModal, 800);
+    }else{
+      msg.textContent = "❌ " + (r.error || "Failed to update password");
+      msg.classList.add("bad");
+    }
+  });
+
+  guard();
+</script>
+</body>
+</html>

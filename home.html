@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home - Tracker</title>
+
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1930;
+      --panel2:#101c36;
+      --text:#eaf0ff;
+      --muted:#a7b2d6;
+      --border:rgba(255,255,255,.12);
+      --shadow:0 18px 45px rgba(0,0,0,.35);
+      --blue:#3b82f6;
+      --green:#22c55e;
+      --amber:#f59e0b;
+      --red:#ef4444;
+      --cyan:#22d3ee;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1100px 520px at 18% -10%, rgba(59,130,246,.24), transparent 60%),
+        radial-gradient(800px 420px at 100% 0%, rgba(236,72,153,.15), transparent 55%),
+        radial-gradient(900px 450px at 75% 110%, rgba(34,197,94,.10), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      overflow:hidden; /* content scroll inside main */
+    }
+
+    /* Layout: header + scroll area */
+    .shell{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* Collapsible controls bar */
+    .toolbar{
+      flex:0 0 auto;
+      padding:10px;
+    }
+    .toolbarBox{
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 84%, transparent);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .toolbarHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+    }
+    .tTitle{
+      font-weight:950;
+      letter-spacing:.2px;
+      font-size:14px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tSub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tLeft{min-width:0}
+    .tRight{display:flex; gap:8px; align-items:center}
+
+    button, input, select{
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--panel2) 78%, transparent);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:14px;
+      outline:none;
+    }
+    button{cursor:pointer;font-weight:900}
+    button:active{transform:translateY(1px)}
+    .primary{
+      border:0;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 86%, #fff), color-mix(in srgb, var(--cyan) 65%, #fff));
+      color:#081023;
+    }
+    .ghost{background:transparent}
+
+    .toolbarBody{
+      padding:10px 12px 12px;
+      border-top:1px solid var(--border);
+      display:grid;
+      grid-template-columns: 1.2fr .8fr .8fr auto auto;
+      gap:10px;
+      align-items:center;
+    }
+    @media (max-width:900px){
+      .toolbarBody{grid-template-columns:1fr 1fr}
+    }
+
+    .statusLine{
+      padding:0 12px 10px;
+      color:var(--muted);
+      font-size:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:space-between;
+    }
+
+    /* Main scroll area */
+    .main{
+      flex:1 1 auto;
+      overflow:auto;
+      padding:0 10px 14px;
+    }
+
+    /* Summary minimized (smaller) */
+    .summary{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:10px;
+      margin:10px 0 12px;
+    }
+    @media (max-width:900px){
+      .summary{grid-template-columns:1fr 1fr}
+    }
+    .card{
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      border-radius:16px;
+      padding:12px;
+    }
+    .k{font-size:12px;color:var(--muted)}
+    .v{font-size:18px;font-weight:950;margin-top:4px}
+
+    .paperTitle{
+      margin:16px 0 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .paperTitle h2{margin:0;font-size:16px;font-weight:950}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:7px 10px;border-radius:999px;
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--panel2) 76%, transparent);
+      font-size:12px;color:var(--muted);
+      white-space:nowrap;
+    }
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--blue);}
+
+    details.topic{
+      border:1px solid var(--border);
+      background: color-mix(in srgb, var(--panel2) 92%, transparent);
+      border-radius:18px;
+      padding:12px;
+      margin:12px 0;
+      box-shadow: var(--shadow);
+    }
+    summary.topicSum{
+      cursor:pointer;
+      list-style:none;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      user-select:none;
+    }
+    summary::-webkit-details-marker{display:none}
+    .tLeft2{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .tTitle2{font-weight:950;font-size:15px;line-height:1.2}
+    .meta{color:var(--muted);font-weight:700;font-size:12px}
+    .tRight2{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:165px}
+    .pct{font-weight:950;font-size:14px}
+
+    .bar{
+      height:11px;
+      background: color-mix(in srgb, var(--border) 40%, transparent);
+      border-radius:999px;
+      overflow:hidden;
+      margin-top:12px;
+    }
+    .bar > span{
+      display:block;height:100%;width:0%;
+      border-radius:999px;
+      transition: width 800ms cubic-bezier(.2,.9,.2,1);
+      background: var(--blue);
+    }
+
+    details.sub{
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      margin:12px 0 0;
+    }
+    summary.subSum{
+      cursor:pointer;
+      list-style:none;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      font-weight:950;
+      user-select:none;
+    }
+
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:12px;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+    }
+    .chip .dot{width:8px;height:8px}
+    .done{color:var(--green);font-weight:950}
+    .todo{color:var(--red);font-weight:950}
+
+    .empty{
+      border:1px dashed var(--border);
+      background: color-mix(in srgb, var(--panel) 60%, transparent);
+      border-radius:16px;
+      padding:18px;
+      color:var(--muted);
+      text-align:center;
+      margin-top:10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <div class="toolbar">
+      <div class="toolbarBox">
+        <div class="toolbarHead">
+          <div class="tLeft">
+            <div class="tTitle">O-Level 27 — Revision Tracker</div>
+            <div class="tSub" id="subtitle">Loading…</div>
+          </div>
+          <div class="tRight">
+            <button id="minBtn" class="ghost" title="Minimize/Expand controls">Minimize</button>
+            <button id="refresh" class="primary" title="Reload">Refresh</button>
+          </div>
+        </div>
+
+        <div id="controls">
+          <div class="toolbarBody">
+            <input id="q" placeholder="Search (e.g., 1.2, Hardware)" />
+            <select id="paperFilter"><option value="all">All Papers</option></select>
+            <select id="doneFilter">
+              <option value="all">All</option>
+              <option value="done">Done</option>
+              <option value="todo">Not done</option>
+            </select>
+
+            <button id="toggleAll" class="ghost">Expand</button>
+            <button id="theme" class="ghost">Light</button>
+          </div>
+          <div class="statusLine">
+            <span id="status">Loading…</span>
+            <span>Tip: minimize controls to see more data.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <section class="summary" id="summary"></section>
+      <div id="out"></div>
+    </div>
+  </div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+  const TOKEN_KEY = "USER_TOKEN";
+  const SHEET_NAME = "Tracker";
+
+  const FIELDS = [
+    ["Theory","Theory"],
+    ["Past Paper Practice","Past Paper Practice"],
+    ["Revision 1","Revision 1"],
+    ["Revision 2","Revision 2"],
+    ["Final Revision","Final Revision"],
+    ["Exam","Exam"]
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const toBool = (v)=> String(v ?? "").trim().toUpperCase() === "TRUE" || v === true;
+  const pct = (n)=> Math.max(0, Math.min(100, Math.round(n)));
+
+  function colorFor(progress){
+    return progress>=75 ? "var(--green)"
+      : progress>=50 ? "var(--blue)"
+      : progress>=20 ? "var(--amber)"
+      : "var(--red)";
+  }
+  function chipHtml(label, ok){
+    return `<span class="chip">
+      <span class="dot" style="background:${ok ? "var(--green)" : "var(--red)"}"></span>
+      <span>${label}</span>
+      <span class="${ok ? "done" : "todo"}">${ok ? "DONE" : "NOT DONE"}</span>
+    </span>`;
+  }
+
+  async function apiGet(params){
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(API_URL + "?" + qs, { cache:"no-store" });
+    return res.json();
+  }
+
+  function normalize(r){
+    const sub = r["Sub Topic"] ?? r["Sub topic"] ?? r["SubTopic"] ?? r["Subtopic"] ?? "";
+    return { ...r, "Sub Topic": sub };
+  }
+
+  function subtopicProgress(r){
+    const t = FIELDS.reduce((a,[k])=> a + (toBool(r[k]) ? 1 : 0), 0);
+    return (t/FIELDS.length)*100;
+  }
+
+  function groupTopicWise(rows){
+    const byPaper = {};
+    rows.forEach(r=>{
+      const paper = String(r["Paper"]||"").trim() || "Unknown Paper";
+      (byPaper[paper] ||= []).push(r);
+    });
+
+    const result = {};
+    for(const paper of Object.keys(byPaper).sort()){
+      const list = byPaper[paper];
+      let currentTopic = null;
+
+      for(const r0 of list){
+        const r = normalize(r0);
+        const topic = String(r["Topic"]||"").trim();
+        const sub = String(r["Sub Topic"]||"").trim();
+
+        const isTopicRow = topic && !sub;
+        const isSubRow = !!sub;
+
+        if(isTopicRow){
+          currentTopic = { paper, topicTitle: topic, subs: [] };
+          (result[paper] ||= []).push(currentTopic);
+          continue;
+        }
+
+        if(isSubRow){
+          if(!currentTopic){
+            currentTopic = { paper, topicTitle: "Topic (missing header row)", subs: [] };
+            (result[paper] ||= []).push(currentTopic);
+          }
+          const progress = subtopicProgress(r);
+          currentTopic.subs.push({
+            subTitle: sub,
+            done: toBool(r["Exam"]),
+            progress,
+            checks: Object.fromEntries(FIELDS.map(([k])=>[k,toBool(r[k])]))
+          });
+        }
+      }
+    }
+    return result;
+  }
+
+  function applyFilters(grouped){
+    const q = $("q").value.trim().toLowerCase();
+    const paper = $("paperFilter").value;
+    const done = $("doneFilter").value;
+
+    const out = {};
+    for(const p of Object.keys(grouped)){
+      if(paper !== "all" && p !== paper) continue;
+
+      const topics = [];
+      for(const t of grouped[p]){
+        const subs = t.subs.filter(s=>{
+          const doneOk = (done==="all") ? true : (done==="done" ? s.done : !s.done);
+          const qOk = !q ? true : (`${t.topicTitle} ${s.subTitle}`.toLowerCase().includes(q));
+          return doneOk && qOk;
+        });
+
+        if(subs.length) topics.push({ ...t, subs });
+      }
+      if(topics.length) out[p] = topics;
+    }
+    return out;
+  }
+
+  function topicStats(topic){
+    const n = topic.subs.length || 1;
+    const avg = topic.subs.reduce((a,s)=>a+s.progress,0)/n;
+    const doneAll = topic.subs.length ? topic.subs.every(s=>s.done) : false;
+    return {avg, doneAll};
+  }
+
+  function computeOverall(grouped){
+    let totalSubs = 0, doneSubs = 0, sumProgress = 0;
+    let totalTopics = 0, doneTopics = 0;
+
+    for(const paper of Object.keys(grouped)){
+      for(const t of grouped[paper]){
+        totalTopics++;
+        const {doneAll} = topicStats(t);
+        if(doneAll) doneTopics++;
+        for(const s of t.subs){
+          totalSubs++;
+          if(s.done) doneSubs++;
+          sumProgress += s.progress;
+        }
+      }
+    }
+    const avgProgress = totalSubs ? (sumProgress/totalSubs) : 0;
+    return { totalSubs, doneSubs, todoSubs: totalSubs-doneSubs, totalTopics, doneTopics, avgProgress };
+  }
+
+  function animateBars(root=document){
+    requestAnimationFrame(()=> {
+      root.querySelectorAll(".bar > span").forEach(el=>{
+        const w = el.style.width;
+        el.style.width = "0%";
+        el.getBoundingClientRect();
+        el.style.width = w;
+      });
+    });
+  }
+
+  function renderSummary(grouped){
+    const s = $("summary");
+    const o = computeOverall(grouped);
+    s.innerHTML = `
+      <div class="card">
+        <div class="k">Overall</div>
+        <div class="v">${pct(o.avgProgress)}%</div>
+        <div class="bar"><span style="width:${pct(o.avgProgress)}%;background:${colorFor(o.avgProgress)}"></span></div>
+      </div>
+      <div class="card">
+        <div class="k">Subtopics Done</div>
+        <div class="v">${o.doneSubs} / ${o.totalSubs}</div>
+      </div>
+      <div class="card">
+        <div class="k">Topics Done</div>
+        <div class="v">${o.doneTopics} / ${o.totalTopics}</div>
+      </div>
+      <div class="card">
+        <div class="k">Goal</div>
+        <div class="v">75%+</div>
+      </div>
+    `;
+    animateBars(s);
+  }
+
+  function render(grouped){
+    const out = $("out");
+    out.innerHTML = "";
+
+    const papers = Object.keys(grouped).sort();
+    if(!papers.length){
+      out.innerHTML = `<div class="empty">No rows match your filters.</div>`;
+      $("summary").innerHTML = "";
+      return;
+    }
+
+    renderSummary(grouped);
+
+    for(const paper of papers){
+      let pSubs=0, pDone=0, pProg=0;
+      for(const t of grouped[paper]){
+        for(const s of t.subs){ pSubs++; if(s.done) pDone++; pProg += s.progress; }
+      }
+      const pAvg = pSubs ? (pProg/pSubs) : 0;
+
+      const head = document.createElement("div");
+      head.className = "paperTitle";
+      head.innerHTML = `
+        <h2>${paper}</h2>
+        <span class="pill">
+          <span class="dot" style="background:${colorFor(pAvg)}"></span>
+          ${pct(pAvg)}% avg • ${pDone}/${pSubs} done
+        </span>
+      `;
+      out.appendChild(head);
+
+      for(const topic of grouped[paper]){
+        const {avg} = topicStats(topic);
+
+        const tDetails = document.createElement("details");
+        tDetails.className = "topic";
+        tDetails.open = avg < 35;
+
+        tDetails.innerHTML = `
+          <summary class="topicSum">
+            <div class="tLeft2">
+              <div class="tTitle2">${topic.topicTitle}</div>
+              <div class="meta">${topic.subs.length} subtopic(s)</div>
+            </div>
+            <div class="tRight2">
+              <div class="pct">${pct(avg)}%</div>
+            </div>
+          </summary>
+
+          <div class="bar"><span style="width:${pct(avg)}%;background:${colorFor(avg)}"></span></div>
+          <div class="subs"></div>
+        `;
+
+        const subsWrap = tDetails.querySelector(".subs");
+        subsWrap.innerHTML = topic.subs.map(s=>{
+          const chips = FIELDS.map(([k,label]) => chipHtml(label, s.checks[k])).join("");
+          return `
+            <details class="sub">
+              <summary class="subSum">
+                <span>${s.subTitle}</span>
+                <span>${pct(s.progress)}% • ${s.done ? `<span class="done">DONE</span>` : `<span class="todo">NOT DONE</span>`}</span>
+              </summary>
+              <div style="margin-top:10px">
+                <div class="bar"><span style="width:${pct(s.progress)}%;background:${colorFor(s.progress)}"></span></div>
+                <div class="chips">${chips}</div>
+              </div>
+            </details>
+          `;
+        }).join("");
+
+        out.appendChild(tDetails);
+      }
+    }
+
+    animateBars(document);
+  }
+
+  let expanded = false;
+  function setAll(open){
+    document.querySelectorAll("details.topic").forEach(d=> d.open = open);
+    expanded = open;
+    $("toggleAll").textContent = open ? "Collapse" : "Expand";
+  }
+
+  let tmr = null;
+  function debounceLoad(){
+    clearTimeout(tmr);
+    tmr = setTimeout(load, 220);
+  }
+
+  $("q").addEventListener("input", debounceLoad);
+  $("paperFilter").addEventListener("change", load);
+  $("doneFilter").addEventListener("change", load);
+  $("refresh").addEventListener("click", load);
+  $("toggleAll").addEventListener("click", ()=> setAll(!expanded));
+
+  $("theme").addEventListener("click", ()=>{
+    const body = document.body;
+    const isDark = body.getAttribute("data-theme") !== "light";
+    body.setAttribute("data-theme", isDark ? "light" : "dark");
+    $("theme").textContent = isDark ? "Dark" : "Light";
+  });
+
+  // Minimize controls
+  let minimized = false;
+  $("minBtn").addEventListener("click", ()=>{
+    minimized = !minimized;
+    $("controls").style.display = minimized ? "none" : "block";
+    $("minBtn").textContent = minimized ? "Expand" : "Minimize";
+  });
+
+  async function load(){
+    $("status").textContent = "Loading…";
+    try{
+      const token = localStorage.getItem(TOKEN_KEY) || "";
+      if(!token) throw new Error("Not logged in");
+
+      const res = await apiGet({ action:"tracker", token, sheet: SHEET_NAME });
+      if(!res.ok) throw new Error(res.error || "Tracker load failed");
+
+      const rows = res.rows || [];
+
+      const papers = new Set(rows.map(r=>String(r["Paper"]||"").trim()).filter(Boolean));
+      const sel = $("paperFilter");
+      const cur = sel.value;
+      sel.innerHTML = `<option value="all">All Papers</option>` + [...papers].sort().map(p=>`<option value="${p}">${p}</option>`).join("");
+      if ([...papers,"all"].includes(cur)) sel.value = cur;
+
+      const grouped = groupTopicWise(rows);
+      const filtered = applyFilters(grouped);
+
+      render(filtered);
+
+      $("status").textContent = "Updated: " + new Date().toLocaleString();
+      setAll(expanded);
+    }catch(e){
+      $("status").textContent = "Error: " + e.message;
+      $("out").innerHTML = `<div class="empty">Failed to load data. Make sure you are logged in.</div>`;
+      $("summary").innerHTML = "";
+    }
+  }
+
+  // Show “Hi user …” inside home toolbar subtitle (optional)
+  (async ()=>{
+    try{
+      const token = localStorage.getItem(TOKEN_KEY) || "";
+      const me = await apiGet({ action:"me", token });
+      const who = (me.username && String(me.username).trim()) ? String(me.username).trim() : (me.principal || "User");
+      $("subtitle").textContent = `Hi ${who} • Showmik Sir: "Trust me, you can do more than you know"`;
+    }catch{
+      $("subtitle").textContent = `Showmik Sir: "Trust me, you can do more than you know"`;
+    }
+    load();
+  })();
+</script>
+</body>
+</html>

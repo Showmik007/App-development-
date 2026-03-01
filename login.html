@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Login</title>
+
+<style>
+:root{
+  --bg:#0b1220;
+  --panel:#111a2e;
+  --panel2:#0f1730;
+  --text:#eaf0ff;
+  --muted:#a7b2d6;
+  --border:rgba(255,255,255,.12);
+  --shadow:0 20px 50px rgba(0,0,0,.45);
+  --blue:#3b82f6;
+  --cyan:#22d3ee;
+  --green:#22c55e;
+  --red:#ef4444;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:
+    radial-gradient(1000px 500px at 20% -10%, rgba(59,130,246,.25), transparent 60%),
+    radial-gradient(800px 450px at 100% 0%, rgba(34,211,238,.15), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.card{
+  width:min(420px, 100%);
+  border:1px solid var(--border);
+  border-radius:24px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: var(--shadow);
+  padding:28px 22px 24px;
+}
+.title{font-size:22px;font-weight:950;margin:0 0 6px;letter-spacing:.2px;}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:18px;}
+label{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;}
+input{
+  width:100%;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background: color-mix(in srgb, var(--panel2) 85%, transparent);
+  color:var(--text);
+  font-size:14px;
+  outline:none;
+  margin-bottom:14px;
+}
+input:focus{
+  border-color: color-mix(in srgb, var(--blue) 55%, var(--border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 18%, transparent);
+}
+.row{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:14px;font-size:12px;color:var(--muted);
+}
+.row input{width:16px;height:16px;margin:0;}
+button{
+  width:100%;
+  padding:13px;
+  border-radius:16px;
+  border:0;
+  font-weight:950;
+  letter-spacing:.3px;
+  cursor:pointer;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 90%, #fff), color-mix(in srgb, var(--cyan) 65%, #fff));
+  color:#081023;
+  transition: transform .08s ease;
+}
+button:active{transform:translateY(1px)}
+button[disabled]{opacity:.7;cursor:not-allowed}
+.msg{margin-top:12px;font-size:13px;min-height:18px;}
+.ok{color:var(--green);font-weight:900}
+.bad{color:var(--red);font-weight:900}
+.footer{text-align:center;margin-top:16px;font-size:11px;color:var(--muted);}
+</style>
+</head>
+
+<body>
+<div class="card">
+  <div class="title">Login</div>
+  <div class="subtitle">Enter your User ID and password.</div>
+
+  <label>User ID</label>
+  <input id="userId" placeholder="e.g. 910" inputmode="numeric" />
+
+  <label>Password</label>
+  <input id="password" type="password" placeholder="Your password" />
+
+  <div class="row">
+    <input id="showPass" type="checkbox" />
+    <span>Show password</span>
+  </div>
+
+  <button id="loginBtn">Login</button>
+  <div class="msg" id="msg"></div>
+  <div class="footer">O-Level 27 • User App</div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+const TOKEN_KEY = "USER_TOKEN";
+const $ = (id)=> document.getElementById(id);
+
+function setMsg(text, cls){
+  const el = $("msg");
+  el.textContent = text || "";
+  el.className = "msg" + (cls ? " " + cls : "");
+}
+
+$("showPass").addEventListener("change", ()=>{
+  $("password").type = $("showPass").checked ? "text" : "password";
+});
+
+async function apiGet(params){
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(API_URL + "?" + qs, { cache:"no-store" });
+  return res.json();
+}
+
+async function login(){
+  const userId = $("userId").value.trim();
+  const password = $("password").value;
+
+  if(!userId || !password){
+    setMsg("Please enter User ID and password.", "bad");
+    return;
+  }
+
+  $("loginBtn").disabled = true;
+  setMsg("Logging in...");
+
+  try{
+    const r = await apiGet({ action:"user_login_get", userId, password });
+
+    if(r.ok && r.token){
+      localStorage.setItem(TOKEN_KEY, r.token);
+      setMsg("Login successful ✓", "ok");
+      setTimeout(()=> location.href="app.html", 350);
+    }else{
+      setMsg(r.error || "Invalid credentials", "bad");
+    }
+  }catch(e){
+    setMsg("Network error. Check deployment access.", "bad");
+  }
+
+  $("loginBtn").disabled = false;
+}
+
+$("loginBtn").addEventListener("click", login);
+$("password").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
+$("userId").addEventListener("keydown", e=>{ if(e.key==="Enter") login(); });
+</script>
+</body>
+</html>

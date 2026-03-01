@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loading...</title>
+
+<style>
+:root{
+  --bg:#0b1220;
+  --panel:#111a2e;
+  --border:rgba(255,255,255,.12);
+  --text:#eaf0ff;
+  --muted:#a7b2d6;
+  --blue:#3b82f6;
+  --cyan:#22d3ee;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:
+    radial-gradient(1000px 500px at 20% -10%, rgba(59,130,246,.25), transparent 60%),
+    radial-gradient(800px 450px at 100% 0%, rgba(34,211,238,.15), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.box{
+  text-align:center;
+  padding:30px 24px;
+  border:1px solid var(--border);
+  border-radius:24px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  width:min(380px, 90%);
+}
+
+.loader{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:4px solid rgba(255,255,255,.15);
+  border-top:4px solid var(--cyan);
+  margin:0 auto 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin{
+  to{ transform:rotate(360deg); }
+}
+
+.title{
+  font-weight:950;
+  font-size:18px;
+  margin-bottom:6px;
+}
+
+.subtitle{
+  font-size:13px;
+  color:var(--muted);
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <div class="loader"></div>
+  <div class="title">Checking session...</div>
+  <div class="subtitle">Please wait</div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+const TOKEN_KEY = "USER_TOKEN";
+
+async function apiGet(params){
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(API_URL + "?" + qs, { cache:"no-store" });
+  return res.json();
+}
+
+async function checkSession(){
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  // No token → go login
+  if(!token){
+    location.replace("login.html");
+    return;
+  }
+
+  try{
+    const r = await apiGet({ action:"me", token });
+
+    if(r.ok && r.type === "user"){
+      location.replace("app.html");
+    }else{
+      localStorage.removeItem(TOKEN_KEY);
+      location.replace("login.html");
+    }
+  }catch(e){
+    // If network issue → safe fallback
+    localStorage.removeItem(TOKEN_KEY);
+    location.replace("login.html");
+  }
+}
+
+checkSession();
+</script>
+
+</body>
+</html>

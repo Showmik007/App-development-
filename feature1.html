@@ -1,5 +1,413 @@
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:Arial;padding:14px">
-  <h2>Feature 2</h2>
-  <p>Coming soon...</p>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>Future Video Player</title>
+  <style>
+    :root {
+      --bg-1: #060816;
+      --bg-2: #0b1226;
+      --card: rgba(255, 255, 255, 0.08);
+      --card-border: rgba(255, 255, 255, 0.14);
+      --text: #eef4ff;
+      --muted: #a6b6d9;
+      --accent: #67e8f9;
+      --accent-2: #8b5cf6;
+      --glow: 0 0 30px rgba(103, 232, 249, 0.22);
+      --radius: 24px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(103, 232, 249, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(139, 92, 246, 0.14), transparent 28%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      min-height: 100%;
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: radial-gradient(circle at center, black 45%, transparent 100%);
+      z-index: 0;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb-1 {
+      width: 280px;
+      height: 280px;
+      background: #00d4ff;
+      top: 8%;
+      left: -60px;
+    }
+
+    .orb-2 {
+      width: 320px;
+      height: 320px;
+      background: #7c3aed;
+      bottom: 4%;
+      right: -80px;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .tag {
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(103, 232, 249, 0.10);
+      border: 1px solid rgba(103, 232, 249, 0.28);
+      color: #baf5ff;
+      font-size: 13px;
+      letter-spacing: 0.4px;
+      backdrop-filter: blur(10px);
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(32px, 7vw, 68px);
+      line-height: 0.96;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+    }
+
+    .title span {
+      background: linear-gradient(90deg, #ffffff, #9be7ff, #c4b5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: clamp(15px, 2.6vw, 18px);
+      line-height: 1.65;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.45fr 0.72fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .video-shell {
+      position: relative;
+      padding: 18px;
+      box-shadow: var(--shadow), var(--glow);
+    }
+
+    .video-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .video-label {
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #d7e6ff;
+      font-size: 13px;
+    }
+
+    .video-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .video-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(103,232,249,0.08), transparent 18%, transparent 82%, rgba(139,92,246,0.08)),
+        linear-gradient(90deg, rgba(255,255,255,0.04), transparent 20%, transparent 80%, rgba(255,255,255,0.04));
+      z-index: 1;
+    }
+
+    .video-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .info-card {
+      padding: 22px;
+    }
+
+    .info-title {
+      margin: 0 0 10px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .info-text {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .feature-list {
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+
+    .feature-list li {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #dce8ff;
+      line-height: 1.5;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        gap: 18px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        width: min(100% - 18px, 1200px);
+        padding-top: 18px;
+      }
+
+      .video-shell {
+        padding: 12px;
+        border-radius: 20px;
+      }
+
+      .video-frame {
+        border-radius: 16px;
+      }
+
+      .info-card {
+        padding: 18px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .video-topbar {
+        margin-bottom: 12px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <main class="container">
+    <section class="hero">
+      <div class="tag">NEXT GEN VIDEO EXPERIENCE</div>
+      <h1 class="title"><span>My Future Video</span></h1>
+      <p class="subtitle">
+        A futuristic responsive video layout with a cinematic look, mobile-friendly design,
+        and a clean fullscreen-ready player experience.
+      </p>
+    </section>
+
+    <section class="layout">
+      <div class="panel video-shell">
+        <div class="video-topbar">
+          <div class="video-label">Streaming panel • Responsive • Mobile ready</div>
+          <div class="chips">
+            <div class="chip">16:9 Smart Fit</div>
+            <div class="chip">Fullscreen Ready</div>
+            <div class="chip">Touch Friendly</div>
+          </div>
+        </div>
+
+        <div class="video-frame">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/G0-CnmsFRd8?rel=0&modestbranding=1"
+            title="Future Video Player"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowfullscreen>
+          </iframe>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel info-card">
+          <h2 class="info-title">Immersive Visual Design</h2>
+          <p class="info-text">
+            This layout is designed to feel sleek, modern, and premium while staying fast and easy to use on smaller screens.
+          </p>
+
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label">Mode</span>
+              <span class="stat-value">Responsive</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">View</span>
+              <span class="stat-value">Fullscreen</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Device</span>
+              <span class="stat-value">Mobile + PC</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Style</span>
+              <span class="stat-value">Futuristic</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel info-card">
+          <h2 class="info-title">Feature Highlights</h2>
+          <ul class="feature-list">
+            <li>Fluid scaling on phone, tablet, and desktop screens.</li>
+            <li>Modern glassmorphism card design with neon glow accents.</li>
+            <li>Large cinematic player area with proper aspect ratio.</li>
+            <li>Ready for YouTube fullscreen playback on mobile devices.</li>
+          </ul>
+
+          <div class="footer-note">
+            To use another YouTube video, replace <strong>G0-CnmsFRd8</strong> in the iframe URL.
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>

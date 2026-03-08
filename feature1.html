@@ -1,309 +1,325 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tutorial Videos</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tutorial Videos</title>
 
-<style>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --panel2:#0f1730;
+      --text:#eaf0ff;
+      --muted:#a7b2d6;
+      --border:rgba(255,255,255,.12);
+      --shadow:0 18px 45px rgba(0,0,0,.35);
+    }
 
-:root{
---bg:#0b1220;
---panel:#111a2e;
---panel2:#0f1730;
---text:#eaf0ff;
---muted:#a7b2d6;
---border:rgba(255,255,255,.12);
-}
+    *{box-sizing:border-box}
 
-*{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      padding:16px;
+    }
 
-body{
-margin:0;
-font-family:Arial;
-background:var(--bg);
-color:var(--text);
-padding:16px;
-}
+    h1{
+      margin:0 0 14px;
+      font-size:28px;
+    }
 
-h1{
-margin:0 0 14px;
-font-size:28px;
-}
+    .controls{
+      display:grid;
+      grid-template-columns:1fr 220px;
+      gap:12px;
+      margin-bottom:12px;
+    }
 
-.controls{
-display:grid;
-grid-template-columns:1fr 200px;
-gap:10px;
-margin-bottom:12px;
-}
+    @media (max-width:700px){
+      .controls{grid-template-columns:1fr}
+    }
 
-@media(max-width:700px){
-.controls{grid-template-columns:1fr}
-}
+    input,select{
+      width:100%;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:var(--panel2);
+      color:var(--text);
+      font-size:14px;
+      outline:none;
+    }
 
-input,select{
-padding:12px;
-border-radius:12px;
-border:1px solid var(--border);
-background:var(--panel2);
-color:var(--text);
-}
+    .status{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:10px;
+    }
 
-.status{
-font-size:12px;
-color:var(--muted);
-margin-bottom:10px;
-}
+    .list{
+      display:grid;
+      gap:14px;
+    }
 
-.list{
-display:grid;
-gap:14px;
-}
+    .card{
+      display:grid;
+      grid-template-columns:170px 1fr auto;
+      gap:16px;
+      align-items:center;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:16px;
+      cursor:pointer;
+      transition:.18s ease;
+      box-shadow:var(--shadow);
+    }
 
-.card{
-display:grid;
-grid-template-columns:160px 1fr auto;
-gap:16px;
-align-items:center;
-background:var(--panel);
-border:1px solid var(--border);
-border-radius:20px;
-padding:16px;
-cursor:pointer;
-transition:.2s;
-}
+    .card:hover{
+      background:#162343;
+      transform:translateY(-1px);
+    }
 
-.card:hover{
-background:#162343;
-}
+    @media (max-width:700px){
+      .card{grid-template-columns:1fr}
+    }
 
-.thumbWrap{
-position:relative;
-width:160px;
-height:90px;
-border-radius:12px;
-overflow:hidden;
-background:#000;
-}
+    .thumbWrap{
+      position:relative;
+      width:170px;
+      height:96px;
+      border-radius:14px;
+      overflow:hidden;
+      background:#000;
+      border:1px solid var(--border);
+    }
 
-.thumb{
-width:100%;
-height:100%;
-object-fit:cover;
-}
+    @media (max-width:700px){
+      .thumbWrap{
+        width:100%;
+        height:190px;
+      }
+    }
 
-.playIcon{
-position:absolute;
-bottom:8px;
-left:8px;
-background:rgba(0,0,0,.6);
-padding:5px 10px;
-border-radius:999px;
-font-size:12px;
-}
+    .thumb{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
 
-.title{
-font-size:20px;
-font-weight:bold;
-margin-bottom:6px;
-}
+    .thumbFallback{
+      width:100%;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-size:13px;
+      background:#09101d;
+    }
 
-.desc{
-font-size:14px;
-color:var(--muted);
-}
+    .playIcon{
+      position:absolute;
+      left:8px;
+      bottom:8px;
+      background:rgba(0,0,0,.65);
+      color:#fff;
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid rgba(255,255,255,.12);
+    }
 
-.meta{
-font-size:12px;
-color:var(--muted);
-}
+    .title{
+      font-size:20px;
+      font-weight:900;
+      margin:0 0 6px;
+    }
 
-.empty{
-padding:20px;
-text-align:center;
-border:1px dashed var(--border);
-border-radius:12px;
-color:var(--muted);
-}
+    .desc{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
+    }
 
-</style>
+    .meta{
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+      align-self:start;
+    }
+
+    .empty{
+      padding:20px;
+      text-align:center;
+      border:1px dashed var(--border);
+      border-radius:14px;
+      color:var(--muted);
+      background:var(--panel);
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>Tutorial Videos</h1>
+  <h1>Tutorial Videos</h1>
 
-<div class="controls">
-<input id="search" placeholder="Search by title or description">
-<select id="sort">
-<option value="serial-asc">Sort: Serial ↑</option>
-<option value="serial-desc">Sort: Serial ↓</option>
-<option value="title-asc">Sort: Title A-Z</option>
-<option value="title-desc">Sort: Title Z-A</option>
-</select>
-</div>
+  <div class="controls">
+    <input id="search" placeholder="Search by title or description">
+    <select id="sort">
+      <option value="serial-asc">Sort: Serial ↑</option>
+      <option value="serial-desc">Sort: Serial ↓</option>
+      <option value="title-asc">Sort: Title A-Z</option>
+      <option value="title-desc">Sort: Title Z-A</option>
+    </select>
+  </div>
 
-<div class="status" id="status">Loading...</div>
-
-<div class="list" id="list"></div>
+  <div class="status" id="status">Loading...</div>
+  <div class="list" id="list"></div>
 
 <script>
-
-const API = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
-const TOKEN = localStorage.getItem("USER_TOKEN") || "";
-
-let ALL=[];
-
-/* Extract YouTube ID */
-
-function getYoutubeId(url){
-
-try{
-
-const u = new URL(url);
-
-if(u.hostname.includes("youtu.be"))
-return u.pathname.replace("/","");
-
-if(u.hostname.includes("youtube.com"))
-return u.searchParams.get("v");
-
-}catch(e){}
-
-return "";
-
-}
-
-/* Normalize row */
-
-function normalize(r){
-
-return{
-
-serial:r["serial number"] || "",
-title:r["title"] || "",
-description:r["Description"] || "",
-video:r["vedio link"] || ""
-
-};
-
-}
-
-/* Load data */
-
-async function load(){
-
-const status=document.getElementById("status");
-
-try{
-
-const res=await fetch(API+"?action=tutorial_list&token="+TOKEN);
-
-const data=await res.json();
-
-if(!data.ok) throw new Error(data.error);
-
-ALL=data.rows.map(normalize);
-
-status.textContent="Loaded "+ALL.length+" videos";
-
-render();
-
-}catch(e){
-
-status.textContent="Error loading videos";
-
-}
-
-}
-
-/* Render list */
-
-function render(){
-
-const q=document.getElementById("search").value.toLowerCase();
-
-const sort=document.getElementById("sort").value;
-
-let rows=ALL.filter(v=>{
-
-return (v.title+" "+v.description).toLowerCase().includes(q);
-
-});
-
-rows.sort((a,b)=>{
-
-if(sort==="serial-asc")
-return a.serial-b.serial;
-
-if(sort==="serial-desc")
-return b.serial-a.serial;
-
-if(sort==="title-asc")
-return a.title.localeCompare(b.title);
-
-if(sort==="title-desc")
-return b.title.localeCompare(a.title);
-
-return 0;
-
-});
-
-const list=document.getElementById("list");
-
-if(!rows.length){
-
-list.innerHTML='<div class="empty">No videos found</div>';
-return;
-
-}
-
-list.innerHTML=rows.map(v=>{
-
-const id=getYoutubeId(v.video);
-
-const thumb="https://img.youtube.com/vi/"+id+"/hqdefault.jpg";
-
-return`
-
-<div class="card" onclick="openVideo('${id}','${encodeURIComponent(v.title)}')">
-
-<div class="thumbWrap">
-<img class="thumb" src="${thumb}">
-<div class="playIcon">▶ Play</div>
-</div>
-
-<div>
-<div class="title">${v.title}</div>
-<div class="desc">${v.description}</div>
-</div>
-
-<div class="meta">#${v.serial}</div>
-
-</div>
-
-`;
-
-}).join("");
-
-}
-
-/* Open player page */
-
-function openVideo(id,title){
-
-location.href="video.html?id="+id+"&title="+title;
-
-}
-
-/* Events */
-
-document.getElementById("search").addEventListener("input",render);
-document.getElementById("sort").addEventListener("change",render);
-
-load();
-
+  const API = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
+  const TOKEN = localStorage.getItem("USER_TOKEN") || "";
+  let ALL = [];
+
+  function cleanText(value){
+    return String(value || "").trim().replace(/^"(.*)"$/, "$1");
+  }
+
+  function getThumbUrl(id){
+    id = cleanText(id);
+    if(!id) return "";
+    return "https://img.youtube.com/vi/" + encodeURIComponent(id) + "/hqdefault.jpg";
+  }
+
+  function normalize(row){
+    return {
+      serial: cleanText(row["serial number"] || row["serial"] || ""),
+      title: cleanText(row["title"] || ""),
+      description: cleanText(row["Description"] || row["description"] || ""),
+      video: cleanText(row["video link"] || row["vedio link"] || row["video"] || "")
+    };
+  }
+
+  async function load(){
+    const status = document.getElementById("status");
+    const list = document.getElementById("list");
+
+    try{
+      const res = await fetch(API + "?action=tutorial_list&token=" + encodeURIComponent(TOKEN), {
+        cache: "no-store"
+      });
+
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || "Failed to load tutorials");
+
+      ALL = (data.rows || []).map(normalize).filter(v => v.title || v.video);
+      status.textContent = "Loaded " + ALL.length + " video" + (ALL.length === 1 ? "" : "s");
+      render();
+    }catch(e){
+      status.textContent = "Error loading videos";
+      list.innerHTML = '<div class="empty">Could not load tutorials.</div>';
+    }
+  }
+
+  function render(){
+    const q = document.getElementById("search").value.trim().toLowerCase();
+    const sort = document.getElementById("sort").value;
+    const list = document.getElementById("list");
+    const status = document.getElementById("status");
+
+    let rows = ALL.filter(v => {
+      return (v.title + " " + v.description).toLowerCase().includes(q);
+    });
+
+    rows.sort((a, b) => {
+      if(sort === "serial-asc"){
+        return (parseInt(a.serial || "0", 10) || 0) - (parseInt(b.serial || "0", 10) || 0);
+      }
+      if(sort === "serial-desc"){
+        return (parseInt(b.serial || "0", 10) || 0) - (parseInt(a.serial || "0", 10) || 0);
+      }
+      if(sort === "title-asc"){
+        return a.title.localeCompare(b.title);
+      }
+      if(sort === "title-desc"){
+        return b.title.localeCompare(a.title);
+      }
+      return 0;
+    });
+
+    status.textContent = rows.length + " result" + (rows.length === 1 ? "" : "s");
+
+    if(!rows.length){
+      list.innerHTML = '<div class="empty">No videos found</div>';
+      return;
+    }
+
+    list.innerHTML = rows.map(v => {
+      const id = v.video;
+      const thumb = getThumbUrl(id);
+
+      return `
+        <div class="card" data-id="${escapeAttr(id)}" data-title="${escapeAttr(v.title)}">
+          <div class="thumbWrap">
+            ${
+              thumb
+                ? `<img class="thumb" src="${thumb}" alt="${escapeAttr(v.title)}" onerror="this.outerHTML='<div class=&quot;thumbFallback&quot;>No thumbnail</div>'">`
+                : `<div class="thumbFallback">No thumbnail</div>`
+            }
+            <div class="playIcon">▶ Play</div>
+          </div>
+
+          <div>
+            <div class="title">${escapeHtml(v.title || "Untitled Video")}</div>
+            <p class="desc">${escapeHtml(v.description || "")}</p>
+          </div>
+
+          <div class="meta">#${escapeHtml(v.serial || "-")}</div>
+        </div>
+      `;
+    }).join("");
+
+    document.querySelectorAll(".card").forEach(card => {
+      card.addEventListener("click", () => {
+        const id = card.dataset.id || "";
+        const title = card.dataset.title || "";
+
+        if(!id){
+          alert("Invalid YouTube ID");
+          return;
+        }
+
+        location.href = "video.html?id=" + encodeURIComponent(id) + "&title=" + encodeURIComponent(title);
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function escapeAttr(s){
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
+  document.getElementById("search").addEventListener("input", render);
+  document.getElementById("sort").addEventListener("change", render);
+
+  load();
 </script>
 
 </body>

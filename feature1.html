@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>Tutorial Videos</title>
   <style>
     :root{
@@ -14,8 +15,11 @@
       --border:rgba(255,255,255,.12);
       --blue:#3b82f6;
       --cyan:#22d3ee;
+      --shadow:0 18px 45px rgba(0,0,0,.35);
     }
+
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{
       margin:0;
       font-family:Arial,sans-serif;
@@ -23,6 +27,7 @@
       color:var(--text);
       padding:14px;
     }
+
     .top{
       position:sticky;
       top:0;
@@ -30,20 +35,24 @@
       background:var(--bg);
       padding-bottom:12px;
     }
+
     h1{
       margin:0 0 12px;
       font-size:28px;
     }
+
     .controls{
       display:grid;
-      grid-template-columns: 1fr 180px;
-      gap:10px;
+      grid-template-columns: 1fr 220px;
+      gap:12px;
       margin-bottom:10px;
     }
+
     @media (max-width:700px){
       .controls{grid-template-columns:1fr}
     }
-    input,select{
+
+    input,select,button{
       width:100%;
       padding:12px 14px;
       border-radius:14px;
@@ -53,67 +62,98 @@
       font-size:14px;
       outline:none;
     }
+
     .status{
       color:var(--muted);
       font-size:12px;
       margin-bottom:10px;
     }
+
     .list{
       display:grid;
-      gap:12px;
+      gap:14px;
     }
+
     .card{
       display:grid;
-      grid-template-columns: 120px 1fr auto;
-      gap:14px;
+      grid-template-columns: 150px 1fr auto;
+      gap:16px;
       align-items:center;
       background:var(--panel);
       border:1px solid var(--border);
-      border-radius:18px;
-      padding:14px;
+      border-radius:22px;
+      padding:16px;
       cursor:pointer;
       transition:.18s ease;
+      box-shadow: var(--shadow);
     }
+
     .card:hover{
       transform:translateY(-1px);
       background:#152243;
     }
+
     @media (max-width:700px){
-      .card{
-        grid-template-columns:1fr;
-      }
+      .card{grid-template-columns:1fr}
     }
-    .thumb{
-      width:120px;
-      height:68px;
-      border-radius:12px;
-      object-fit:cover;
-      background:#0a1020;
+
+    .thumbWrap{
+      position:relative;
+      width:150px;
+      height:84px;
+      border-radius:14px;
+      overflow:hidden;
       border:1px solid var(--border);
+      background:#0a1020;
     }
+
+    .thumb{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .playIcon{
+      position:absolute;
+      inset:auto auto 8px 8px;
+      background:rgba(0,0,0,.55);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      font-weight:700;
+      backdrop-filter: blur(4px);
+    }
+
     @media (max-width:700px){
-      .thumb{
+      .thumbWrap{
         width:100%;
-        height:180px;
+        height:190px;
       }
     }
+
     .title{
       font-size:22px;
       font-weight:900;
       margin:0 0 6px;
     }
+
     .desc{
       color:var(--muted);
       font-size:14px;
       line-height:1.4;
       margin:0;
     }
+
     .meta{
       color:var(--muted);
       font-size:12px;
       white-space:nowrap;
       align-self:start;
     }
+
     .empty{
       margin-top:16px;
       padding:18px;
@@ -122,6 +162,86 @@
       color:var(--muted);
       text-align:center;
       background:var(--panel);
+    }
+
+    /* Video modal */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.78);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+      padding:14px;
+    }
+
+    .overlay.open{
+      display:flex;
+    }
+
+    .modal{
+      width:min(1100px, 100%);
+      max-height:100%;
+      background:#05070d;
+      border:1px solid var(--border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .modalHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      background:#0d1322;
+      border-bottom:1px solid var(--border);
+    }
+
+    .modalTitle{
+      font-weight:900;
+      font-size:15px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .modalBtns{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .smallBtn{
+      width:auto;
+      padding:10px 12px;
+      background:#10192f;
+      cursor:pointer;
+      font-weight:800;
+    }
+
+    .videoWrap{
+      position:relative;
+      width:100%;
+      aspect-ratio:16 / 9;
+      background:#000;
+    }
+
+    .videoFrame{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      background:#000;
+    }
+
+    .help{
+      padding:10px 12px 12px;
+      color:var(--muted);
+      font-size:12px;
+      background:#0d1322;
     }
   </style>
 </head>
@@ -142,19 +262,44 @@
 
   <div class="list" id="list"></div>
 
+  <!-- Popup video modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modalHead">
+        <div class="modalTitle" id="modalTitle">Video</div>
+        <div class="modalBtns">
+          <button class="smallBtn" id="fullBtn" type="button">Full Screen</button>
+          <button class="smallBtn" id="closeBtn" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="videoWrap" id="videoWrap">
+        <iframe
+          id="player"
+          class="videoFrame"
+          title="YouTube video player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin">
+        </iframe>
+      </div>
+
+      <div class="help">
+        Tap Full Screen if you want to watch larger.
+      </div>
+    </div>
+  </div>
+
 <script>
   const API = "https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec";
   const TOKEN = localStorage.getItem("USER_TOKEN") || "";
   let ALL = [];
 
-  function pick(obj, keys){
-    for(const k of keys){
-      if(obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== "") return String(obj[k]).trim();
-    }
-    return "";
+  function val(obj, key){
+    return obj && obj[key] !== undefined && obj[key] !== null ? String(obj[key]).trim() : "";
   }
 
-  function toEmbedUrl(url){
+  function getYouTubeId(url){
     url = String(url || "").trim();
     if(!url) return "";
 
@@ -162,50 +307,39 @@
       const u = new URL(url);
 
       if(u.hostname.includes("youtu.be")){
-        const id = u.pathname.replace(/^\/+/,"").split("/")[0];
-        return id ? `https://www.youtube.com/embed/${id}` : "";
+        return u.pathname.replace(/^\/+/,"").split("/")[0];
       }
 
       if(u.hostname.includes("youtube.com")){
-        if(u.pathname === "/watch"){
-          const id = u.searchParams.get("v");
-          return id ? `https://www.youtube.com/embed/${id}` : "";
-        }
-        if(u.pathname.startsWith("/embed/")){
-          return url;
-        }
-        if(u.pathname.startsWith("/shorts/")){
-          const id = u.pathname.split("/")[2];
-          return id ? `https://www.youtube.com/embed/${id}` : "";
-        }
+        if(u.pathname === "/watch") return u.searchParams.get("v") || "";
+        if(u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2] || "";
+        if(u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2] || "";
       }
-
-      return url;
-    } catch {
-      return url;
-    }
+    }catch(e){}
+    return "";
   }
 
-  function getYoutubeThumb(url){
-    const embed = toEmbedUrl(url);
-    const m = embed.match(/embed\/([^?&/]+)/);
-    const id = m ? m[1] : "";
+  function getThumb(url){
+    const id = getYouTubeId(url);
     return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "";
   }
 
-  function normalizeRow(r){
-    const serial = pick(r, ["serial number","serial","Serial Number","Serial"]);
-    const title = pick(r, ["title","Title"]);
-    const description = pick(r, ["Description","description","desc","Desc"]);
-    const videoLink = pick(r, ["vedio link","video link","Video Link","Vedio Link","link","Link"]);
+  function getEmbedUrl(url){
+    const id = getYouTubeId(url);
+    if(id){
+      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?playsinline=1&rel=0&modestbranding=1`;
+    }
+    return String(url || "").trim();
+  }
 
+  function normalizeRow(r){
     return {
-      serial,
-      title,
-      description,
-      videoLink,
-      embedUrl: toEmbedUrl(videoLink),
-      thumb: getYoutubeThumb(videoLink)
+      serial: val(r, "serial number"),
+      title: val(r, "title"),
+      description: val(r, "Description"),
+      videoLink: val(r, "vedio link"),
+      thumb: getThumb(val(r, "vedio link")),
+      embedUrl: getEmbedUrl(val(r, "vedio link"))
     };
   }
 
@@ -255,11 +389,14 @@
     }
 
     list.innerHTML = rows.map(r => `
-      <div class="card" data-url="${encodeURIComponent(r.embedUrl || r.videoLink)}" data-title="${encodeURIComponent(r.title)}">
-        <img class="thumb" src="${r.thumb || ""}" alt="" onerror="this.style.display='none'">
+      <div class="card" data-embed="${encodeURIComponent(r.embedUrl)}" data-title="${encodeURIComponent(r.title)}">
+        <div class="thumbWrap">
+          <img class="thumb" src="${r.thumb || ""}" alt="" onerror="this.style.display='none'">
+          <div class="playIcon">▶ Play</div>
+        </div>
         <div>
           <div class="title">${escapeHtml(r.title || "Untitled Video")}</div>
-          <p class="desc">${escapeHtml(r.description || "No description")}</p>
+          <p class="desc">${escapeHtml(r.description || "")}</p>
         </div>
         <div class="meta">#${escapeHtml(r.serial || "-")}</div>
       </div>
@@ -267,9 +404,9 @@
 
     document.querySelectorAll(".card").forEach(card => {
       card.addEventListener("click", ()=>{
-        const url = decodeURIComponent(card.dataset.url || "");
+        const embed = decodeURIComponent(card.dataset.embed || "");
         const title = decodeURIComponent(card.dataset.title || "");
-        location.href = `video.html?video=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`;
+        openPlayer(embed, title);
       });
     });
   }
@@ -281,6 +418,36 @@
       .replaceAll(">","&gt;")
       .replaceAll('"',"&quot;");
   }
+
+  const overlay = document.getElementById("overlay");
+  const player = document.getElementById("player");
+  const modalTitle = document.getElementById("modalTitle");
+  const closeBtn = document.getElementById("closeBtn");
+  const fullBtn = document.getElementById("fullBtn");
+  const videoWrap = document.getElementById("videoWrap");
+
+  function openPlayer(src, title){
+    modalTitle.textContent = title || "Video";
+    player.src = src;
+    overlay.classList.add("open");
+  }
+
+  function closePlayer(){
+    overlay.classList.remove("open");
+    player.src = "";
+  }
+
+  closeBtn.addEventListener("click", closePlayer);
+  overlay.addEventListener("click", (e)=>{
+    if(e.target === overlay) closePlayer();
+  });
+
+  fullBtn.addEventListener("click", async ()=>{
+    try{
+      if(videoWrap.requestFullscreen) await videoWrap.requestFullscreen();
+      else if(player.requestFullscreen) await player.requestFullscreen();
+    }catch(e){}
+  });
 
   document.getElementById("search").addEventListener("input", render);
   document.getElementById("sort").addEventListener("change", render);

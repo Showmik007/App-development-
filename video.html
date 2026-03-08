@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Video Player</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --text:#eaf0ff;
+      --muted:#a7b2d6;
+      --border:rgba(255,255,255,.12);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .top{
+      position:sticky;
+      top:0;
+      z-index:10;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:12px;
+      background:var(--panel);
+      border-bottom:1px solid var(--border);
+    }
+    .back{
+      border:1px solid var(--border);
+      background:transparent;
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .title{
+      font-size:16px;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .wrap{
+      padding:14px;
+    }
+    .player{
+      aspect-ratio:16 / 9;
+      width:100%;
+      background:#000;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid var(--border);
+    }
+    iframe{
+      width:100%;
+      height:100%;
+      border:0;
+    }
+    .help{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <button class="back" onclick="history.back()">← Back</button>
+    <div class="title" id="title">Video</div>
+  </div>
+
+  <div class="wrap">
+    <div class="player">
+      <iframe id="player" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+    </div>
+    <div class="help">If an unlisted YouTube video does not play, check that embedding is allowed for that video/account.</div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const video = params.get("video") || "";
+  const title = params.get("title") || "Video";
+
+  document.getElementById("title").textContent = title;
+
+  function toEmbedUrl(url){
+    url = String(url || "").trim();
+    if(!url) return "";
+
+    try{
+      const u = new URL(url);
+
+      if(u.hostname.includes("youtu.be")){
+        const id = u.pathname.replace(/^\/+/,"").split("/")[0];
+        return id ? `https://www.youtube.com/embed/${id}` : "";
+      }
+
+      if(u.hostname.includes("youtube.com")){
+        if(u.pathname === "/watch"){
+          const id = u.searchParams.get("v");
+          return id ? `https://www.youtube.com/embed/${id}` : "";
+        }
+        if(u.pathname.startsWith("/embed/")){
+          return url;
+        }
+        if(u.pathname.startsWith("/shorts/")){
+          const id = u.pathname.split("/")[2];
+          return id ? `https://www.youtube.com/embed/${id}` : "";
+        }
+      }
+
+      return url;
+    } catch {
+      return url;
+    }
+  }
+
+  document.getElementById("player").src = toEmbedUrl(video);
+</script>
+</body>
+</html>

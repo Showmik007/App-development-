@@ -1,0 +1,9 @@
+No Apps Script change is required for the PDF Notes feature in Version 8.
+
+Reason:
+- The current backend already supports GET action=tracker with a custom sheet name.
+- The PDF Notes page reads from the Google Sheet tab named PDF using:
+  action=tracker
+  sheet=PDF
+
+Your new Apps Script URL is already set in config.js.

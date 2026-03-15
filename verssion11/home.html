@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="content-body">
+<div class="page">
+  <div class="tracker-head card card-pad hero-card tracker-head-min">
+    <div class="toolbar tracker-mini-bar">
+      <div class="badge">Revision tracker</div>
+    </div>
+  </div>
+
+  <div class="search-sticky-wrap">
+    <div class="card card-pad sticky-search-card">
+      <label class="form-label">Search topic or subtopic</label>
+      <input class="input" id="searchInput" placeholder="Search chapter or subtopic...">
+    </div>
+  </div>
+
+  <div class="controls-wrap">
+    <div class="card card-pad hero-card controls-card">
+      <div class="filters-grid">
+        <div>
+          <label class="form-label">Filter by paper</label>
+          <select class="select" id="paperFilter"><option value="all">All papers</option></select>
+        </div>
+        <div>
+          <label class="form-label">Filter by progress</label>
+          <select class="select" id="progressFilter">
+            <option value="all">All progress</option>
+            <option value="done">Completed</option>
+            <option value="pending">Not done</option>
+          </select>
+        </div>
+      </div>
+      <div class="toggle-row" style="margin-top:10px">
+        <button class="btn" id="overviewToggle">Hide overview</button>
+        <button class="btn btn-primary" id="reloadBtn">Reload data</button>
+      </div>
+      <div class="status-row compact-status"><span id="statusText">Loading tracker…</span><span id="cacheText"></span></div>
+    </div>
+  </div>
+
+  <section id="overviewSection">
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="overview-head" style="margin-top:12px"><h2 style="margin:0;font-size:19px">Paper progress</h2><div class="badge" id="paperCountBadge">0 papers</div></div>
+    <div class="paper-grid" id="paperGrid"></div>
+  </section>
+
+  <section style="margin-top:14px">
+    <div class="overview-head"><h2 style="margin:0;font-size:19px">Chapter progress</h2><div class="badge" id="chapterCountBadge">0 chapters</div></div>
+    <div class="chapter-stack" id="chapterStack"></div>
+  </section>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const TRACKER_CACHE_KEY = APP.cfg.TRACKER.CACHE_KEY || 'TRACKER_CACHE_V3';
+const TRACKER_TTL = APP.cfg.TRACKER.CACHE_TTL_MS || (1000 * 60 * 60 * 12);
+const state = {
+  rows: [],
+  model: [],
+  query: '',
+  paper: 'all',
+  progress: 'all',
+  overviewVisible: true
+};
+
+function postPage(){ try { parent.postMessage({ type: 'set-page', file: 'home.html' }, '*'); } catch (err) {} }
+function safeText(v){ return String(v == null ? '' : v).trim(); }
+function findKey(row, keys){
+  const lowerMap = {};
+  Object.keys(row || {}).forEach(k => lowerMap[String(k).trim().toLowerCase()] = row[k]);
+  for(const key of keys){
+    const found = lowerMap[String(key).trim().toLowerCase()];
+    if(found != null && String(found).trim() !== '') return found;
+  }
+  return '';
+}
+function rowPaper(row){ return safeText(findKey(row, ['Paper', 'paper'])) || 'Unknown paper'; }
+function rowTopic(row){ return safeText(findKey(row, ['Topic', 'topic', 'Chapter', 'chapter'])) || 'Untitled Topic'; }
+function rowSubtopic(row){ return safeText(findKey(row, ['Sub Topic', 'SubTopic', 'sub topic', 'subtopic'])) || ''; }
+function stagePairs(){ return APP.cfg.TRACKER.STAGES || []; }
+function doneCount(row){ return stagePairs().reduce((sum, pair) => sum + (APP.toBool(findKey(row, [pair[0], pair[1]])) ? 1 : 0), 0); }
+function totalStages(){ return stagePairs().length || 1; }
+function pctFromRow(row){ return Math.round((doneCount(row) / totalStages()) * 100); }
+function isChapterHeaderRow(row){ return !!rowTopic(row) && !rowSubtopic(row); }
+function getCache(){
+  const cached = APP.getCache(TRACKER_CACHE_KEY);
+  if(!cached || !Array.isArray(cached.rows)) return null;
+  if(Date.now() - Number(cached.at || 0) > TRACKER_TTL) return null;
+  return cached;
+}
+function buildModel(rows){
+  const papers = new Map();
+  let currentPaper = '';
+  let currentChapter = null;
+
+  rows.forEach(raw => {
+    const paper = rowPaper(raw);
+    const topic = rowTopic(raw);
+    const sub = rowSubtopic(raw);
+
+    if(!papers.has(paper)) papers.set(paper, { name: paper, chapters: [] });
+    const paperObj = papers.get(paper);
+    currentPaper = paper;
+
+    if(isChapterHeaderRow(raw)) {
+      currentChapter = { paper: currentPaper, name: topic, subtopics: [], expanded: false };
+      paperObj.chapters.push(currentChapter);
+      return;
+    }
+
+    if(!currentChapter || currentChapter.paper !== currentPaper){
+      currentChapter = { paper: currentPaper, name: topic || 'Chapter', subtopics: [], expanded: false };
+      paperObj.chapters.push(currentChapter);
+    }
+
+    currentChapter.subtopics.push({
+      paper: currentPaper,
+      chapter: currentChapter.name,
+      topic: topic || currentChapter.name,
+      subtopic: sub || topic || 'Untitled Subtopic',
+      progress: pctFromRow(raw),
+      raw,
+      expanded: false
+    });
+  });
+
+  return Array.from(papers.values()).map(paper => {
+    paper.chapters.forEach(ch => {
+      ch.total = ch.subtopics.length;
+      ch.done = ch.subtopics.filter(s => s.progress >= 100).length;
+      ch.avg = ch.total ? Math.round(ch.subtopics.reduce((a,b) => a + b.progress, 0) / ch.total) : 0;
+    });
+    paper.total = paper.chapters.reduce((a,c) => a + c.total, 0);
+    paper.done = paper.chapters.reduce((a,c) => a + c.done, 0);
+    paper.avg = paper.total ? Math.round(paper.chapters.reduce((a,c) => a + c.subtopics.reduce((x,y) => x + y.progress, 0), 0) / paper.total) : 0;
+    return paper;
+  });
+}
+function getFilteredModel(){
+  const q = state.query.toLowerCase();
+  return state.model
+    .filter(paper => state.paper === 'all' || paper.name === state.paper)
+    .map(paper => ({
+      ...paper,
+      chapters: paper.chapters
+        .map(ch => ({
+          ...ch,
+          subtopics: ch.subtopics.filter(item => {
+            const text = (paper.name + ' ' + ch.name + ' ' + item.subtopic).toLowerCase();
+            const byQuery = !q || text.includes(q);
+            const byProgress = state.progress === 'all' || (state.progress === 'done' ? item.progress >= 100 : item.progress < 100);
+            return byQuery && byProgress;
+          })
+        }))
+        .filter(ch => ch.subtopics.length)
+    }))
+    .filter(paper => paper.chapters.length);
+}
+function statsFromModel(model){
+  const items = [];
+  model.forEach(p => p.chapters.forEach(ch => ch.subtopics.forEach(s => items.push(s))));
+  const total = items.length;
+  const done = items.filter(i => i.progress >= 100).length;
+  const avg = total ? Math.round(items.reduce((a,b) => a + b.progress, 0) / total) : 0;
+  const focus = items.filter(i => i.progress < 50).length;
+  return { total, done, avg, focus };
+}
+function statCard(label, value, note, progressMeta){
+  const progressHtml = progressMeta ? '<div class="subtext" style="display:flex;justify-content:space-between;margin:8px 0 6px"><span>' + progressMeta.left + '</span><span>' + progressMeta.right + '</span></div><div class="progress-track"><div class="progress-fill" style="width:' + progressMeta.width + '%"></div></div>' : '<div class="subtext">' + APP.escapeHtml(note) + '</div>';
+  return '<div class="card card-pad hero-card"><div class="section-title">' + APP.escapeHtml(label) + '</div><div class="value">' + APP.escapeHtml(value) + '</div>' + progressHtml + '</div>';
+}
+function renderOverview(model){
+  const stats = statsFromModel(model);
+  $('statsGrid').innerHTML = [
+    statCard('Overall completion', stats.avg + '%', '', { left: 'Across all stages', right: stats.done + ' / ' + stats.total, width: stats.avg }),
+    statCard('Subtopics tracked', String(stats.total), 'Every subtopic becomes a visual checklist.'),
+    statCard('Completed items', String(stats.done), 'Total finished stage items across the sheet.'),
+    statCard('Focus needed', String(stats.focus), 'Subtopics below 50% completion.')
+  ].join('');
+
+  $('paperGrid').innerHTML = model.map(paper => '<div class="card paper-card hero-card"><div><div class="badge">Paper</div><h3>' + APP.escapeHtml(paper.name) + '</h3><div class="subtext">' + paper.total + ' tracked subtopics</div></div><div class="ring-wrap"><div class="ring" style="--deg:' + (paper.avg * 3.6) + 'deg"></div><div class="ring-label">' + paper.avg + '%</div></div></div>').join('') || '<div class="card card-pad empty-box">No papers to show.</div>';
+  $('paperCountBadge').textContent = model.length + ' papers';
+}
+function renderChapters(model){
+  let chapterCount = 0;
+  const html = model.map((paper, pi) => paper.chapters.map((chapter, ci) => {
+    chapterCount += 1;
+    const openClass = chapter.expanded ? ' open' : '';
+    const body = chapter.subtopics.map((sub, si) => {
+      const subOpen = sub.expanded ? ' open' : '';
+      const stages = stagePairs().map(pair => {
+        const done = APP.toBool(findKey(sub.raw, [pair[0], pair[1]]));
+        return '<div class="stage-box ' + (done ? 'done' : 'pending') + '"><div class="stage-label">' + APP.escapeHtml(pair[0]) + '</div><div class="stage-value ' + (done ? 'done' : 'pending') + '">' + (done ? 'Done' : 'Pending') + '</div></div>';
+      }).join('');
+      return '<div class="subtopic-card' + subOpen + '" data-sub="' + pi + '-' + ci + '-' + si + '"><div class="subtopic-head"><div><div class="subtopic-title">' + APP.escapeHtml(sub.subtopic) + '</div><div class="subtext">Visual study checklist</div></div><div class="badge">' + sub.progress + '% complete</div></div><div class="subtopic-body"><div class="subtext" style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Completion</span><span>' + sub.progress + '%</span></div><div class="progress-track"><div class="progress-fill" style="width:' + sub.progress + '%"></div></div><div class="stage-grid">' + stages + '</div></div></div>';
+    }).join('');
+    return '<div class="card chapter-card hero-card' + openClass + '" data-chapter="' + pi + '-' + ci + '"><div class="chapter-head"><div><div class="badge">' + APP.escapeHtml(paper.name) + '</div><h3>' + APP.escapeHtml(chapter.name) + '</h3><div class="subtext">' + chapter.total + ' tracked subtopics</div></div><div class="chapter-progress"><div class="badge">' + chapter.avg + '% complete</div><div class="subtext" style="display:flex;justify-content:space-between;margin:8px 0 6px"><span>Completion</span><span>' + chapter.avg + '%</span></div><div class="progress-track"><div class="progress-fill" style="width:' + chapter.avg + '%"></div></div></div></div><div class="topic-body">' + body + '</div></div>';
+  }).join('')).join('');
+  $('chapterStack').innerHTML = html || '<div class="card card-pad empty-box">No chapter data found for the current filter.</div>';
+  $('chapterCountBadge').textContent = chapterCount + ' chapters';
+
+  document.querySelectorAll('[data-chapter]').forEach(el => el.querySelector('.chapter-head').addEventListener('click', function(){
+    const [pi, ci] = el.dataset.chapter.split('-').map(Number);
+    state.model[pi].chapters[ci].expanded = !state.model[pi].chapters[ci].expanded;
+    render();
+  }));
+  document.querySelectorAll('[data-sub]').forEach(el => el.querySelector('.subtopic-head').addEventListener('click', function(){
+    const [pi, ci, si] = el.dataset.sub.split('-').map(Number);
+    state.model[pi].chapters[ci].subtopics[si].expanded = !state.model[pi].chapters[ci].subtopics[si].expanded;
+    render();
+  }));
+}
+function render(){
+  const filtered = getFilteredModel();
+  if(state.overviewVisible){ $('overviewSection').style.display = ''; renderOverview(filtered); }
+  else $('overviewSection').style.display = 'none';
+  renderChapters(filtered);
+}
+async function loadTracker(force){
+  $('statusText').textContent = force ? 'Refreshing…' : 'Loading tracker…';
+  $('cacheText').textContent = '';
+  if(!force){
+    const cached = getCache();
+    if(cached){
+      state.rows = cached.rows;
+      state.model = buildModel(state.rows);
+      fillPaperFilter();
+      $('statusText').textContent = 'Tracker ready';
+      $('cacheText').textContent = 'Cached';
+      render();
+      return;
+    }
+  }
+  try{
+    const res = await APP.apiGet({ action:'tracker', token:APP.getToken('USER'), sheet:APP.cfg.SHEETS.TRACKER });
+    if(!res.ok) throw new Error(res.error || 'Failed to load tracker');
+    state.rows = res.rows || [];
+    APP.setCache(TRACKER_CACHE_KEY, { at:Date.now(), rows:state.rows });
+    state.model = buildModel(state.rows);
+    fillPaperFilter();
+    $('statusText').textContent = 'Tracker ready';
+    $('cacheText').textContent = 'Updated';
+    render();
+  }catch(err){
+    $('statusText').textContent = err.message || 'Failed to load tracker';
+    $('cacheText').textContent = '';
+    $('chapterStack').innerHTML = '<div class="card card-pad empty-box">Tracker data could not be loaded.</div>';
+  }
+}
+function fillPaperFilter(){
+  const current = state.paper;
+  const papers = state.model.map(p => p.name);
+  $('paperFilter').innerHTML = '<option value="all">All papers</option>' + papers.map(p => '<option value="' + APP.escapeHtml(p) + '">' + APP.escapeHtml(p) + '</option>').join('');
+  $('paperFilter').value = papers.includes(current) ? current : 'all';
+  state.paper = $('paperFilter').value;
+}
+$('searchInput').addEventListener('input', e => { state.query = e.target.value.trim(); render(); });
+$('paperFilter').addEventListener('change', e => { state.paper = e.target.value; render(); });
+$('progressFilter').addEventListener('change', e => { state.progress = e.target.value; render(); });
+$('overviewToggle').addEventListener('click', () => { state.overviewVisible = !state.overviewVisible; $('overviewToggle').textContent = state.overviewVisible ? 'Hide overview' : 'Show overview'; render(); });
+$('reloadBtn').addEventListener('click', () => { localStorage.removeItem(TRACKER_CACHE_KEY); loadTracker(true); });
+postPage();
+APP.requireUser().then(me => { if(me) loadTracker(false); });
+</script>
+</body>
+</html>

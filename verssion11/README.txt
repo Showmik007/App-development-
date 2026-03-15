@@ -1,0 +1,37 @@
+VERSION 2 PACKAGE
+
+What changed:
+- Sidebar now has an animated slide-in menu with an X close button.
+- Tutorial videos open and play inside the app. No external YouTube button.
+- Tracker keeps search and filters at the top.
+- Overview and paper progress are shown first and can be hidden or shown.
+- Tracker is grouped as Paper -> Chapter -> Subtopic based on your data.
+- Chapter cards expand to show detailed stage boxes.
+- Tracker data is cached in browser localStorage and reloads only when you press Reload data.
+- CSS is separated into styles.css.
+
+Files to deploy:
+- Code.gs
+- appsscript.json
+- config.js
+- common.js
+- styles.css
+- all HTML files
+
+Notes:
+- This package expects your Tracker sheet to contain Paper, Topic, Sub Topic, and the stage columns:
+  Theory | Past Paper Practice | Revision 1 | Revision 2 | Final Revision | Exam
+- Tutorial sheet can use common column names like Title, Description, Video Link, Link, URL, Youtube, or YouTube.
+- My Post stays as a placeholder until wall routes are added in Apps Script.
+
+
+VERSION 8
+- Added PDF Notes feature from a Google Sheet tab named PDF
+- No Apps Script change required if your current Code.gs already supports action=tracker&sheet=PDF
+- New pages: feature3.html and pdf.html
+- config.js already updated to the new Apps Script URL provided by the user
+
+
+Version 9 update: PDF viewer changed to a full-screen in-app reader with only a Back button.
+
+Version 11 update: compact mobile PDF controls and smaller reload button on PDF Notes page.

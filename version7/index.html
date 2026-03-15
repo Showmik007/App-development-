@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loading</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="content-body">
+<div class="auth-wrap">
+  <div class="card auth-card">
+    <div class="badge">Session check</div>
+    <h1>Opening dashboard…</h1>
+    <div class="subtext" id="status">Please wait.</div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(async function(){
+  const el = document.getElementById('status');
+  try {
+    const me = await APP.fetchMe('USER');
+    if(me.ok && me.type === 'user') location.replace(APP.cfg.PAGES.APP);
+    else { APP.clearToken('USER'); location.replace(APP.cfg.PAGES.LOGIN); }
+  } catch (err) {
+    el.textContent = err.message || 'Connection failed';
+    setTimeout(function(){ location.replace(APP.cfg.PAGES.LOGIN); }, 800);
+  }
+})();
+</script>
+</body>
+</html>

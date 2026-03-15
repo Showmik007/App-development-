@@ -3,70 +3,229 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>O-Level 27 App</title>
+<title>O-Level 27</title>
 
 <style>
-body{
-  margin:0;
-  height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  font-family:Arial, Helvetica, sans-serif;
-  background:linear-gradient(135deg,#0b1d3a,#102a54);
-  color:white;
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family: "Segoe UI", Arial, sans-serif;
 }
 
+body{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:#020617;
+overflow:hidden;
+color:white;
+}
+
+/* MATRIX CANVAS */
+
+canvas{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:0;
+}
+
+/* CENTER PANEL */
+
 .container{
-  text-align:center;
-  background:rgba(255,255,255,0.05);
-  padding:40px;
-  border-radius:16px;
-  backdrop-filter:blur(10px);
-  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+position:relative;
+z-index:2;
+text-align:center;
+padding:45px;
+border-radius:18px;
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(12px);
+box-shadow:0 15px 40px rgba(0,0,0,0.6);
+max-width:420px;
 }
 
 h1{
-  margin-bottom:10px;
+font-size:36px;
+margin-bottom:10px;
+letter-spacing:1px;
 }
 
-p{
-  opacity:0.8;
-  margin-bottom:30px;
+.subtitle{
+opacity:0.8;
+margin-bottom:30px;
 }
 
-button{
-  padding:14px 28px;
-  font-size:16px;
-  border:none;
-  border-radius:8px;
-  background:linear-gradient(90deg,#5ca9ff,#6bd3ff);
-  color:#001a33;
-  cursor:pointer;
-  font-weight:bold;
-  transition:0.3s;
+/* BUTTON */
+
+.open-btn{
+padding:15px 40px;
+font-size:18px;
+border:none;
+border-radius:10px;
+background:linear-gradient(90deg,#4fa3ff,#63e0ff);
+color:#002040;
+cursor:pointer;
+font-weight:700;
+transition:0.3s;
 }
 
-button:hover{
-  transform:scale(1.05);
-  box-shadow:0 6px 20px rgba(0,0,0,0.3);
+.open-btn:hover{
+transform:scale(1.07);
+box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
+
+/* floating coding elements */
+
+.code-float{
+position:absolute;
+color:rgba(150,200,255,0.18);
+font-size:14px;
+animation:float 18s linear infinite;
+}
+
+@keyframes float{
+
+0%{
+transform:translateY(100vh);
+}
+
+100%{
+transform:translateY(-120vh);
+}
+
+}
+
+/* footer */
+
+.footer{
+margin-top:35px;
+font-size:13px;
+opacity:0.7;
+}
+
+@media(max-width:600px){
+
+.container{
+width:90%;
+padding:30px;
+}
+
+h1{
+font-size:28px;
+}
+
+}
+
 </style>
 </head>
 
 <body>
 
-<div class="container">
-<h1>O-Level 27</h1>
-<p>Smart Student Dashboard</p>
+<canvas id="matrix"></canvas>
 
-<button onclick="openApp()">Open App</button>
+<div class="container">
+
+<h1>O-Level 27</h1>
+<p class="subtitle">Smart Student Dashboard</p>
+
+<button class="open-btn" onclick="openApp()">Open App</button>
+
+<div class="footer">
+© All copyright belongs to Showmik Sir
+</div>
+
 </div>
 
 <script>
-function openApp(){
-  window.location.href = "https://showmik007.github.io/App-development-/version7/";
+
+/* MATRIX CODE RAIN */
+
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+
+canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
+
+const letters = "01{}[]<>/\\$#@%&functionletvarreturnwhileforconsole";
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+
+const drops = [];
+
+for(let x=0;x<columns;x++)
+drops[x]=1;
+
+function draw(){
+
+ctx.fillStyle="rgba(2,6,23,0.05)";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+ctx.fillStyle="#3fa7ff";
+ctx.font=fontSize+"px monospace";
+
+for(let i=0;i<drops.length;i++){
+
+const text=letters.charAt(Math.floor(Math.random()*letters.length));
+
+ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+
+if(drops[i]*fontSize>canvas.height && Math.random()>0.975)
+drops[i]=0;
+
+drops[i]++;
+
 }
+
+}
+
+setInterval(draw,33);
+
+
+/* floating coding snippets */
+
+const codes=[
+"if(x>0){return true}",
+"console.log(data)",
+"for(i=0;i<n;i++)",
+"array.push(x)",
+"function solve()",
+"return result",
+"while(true)",
+"let score=100"
+];
+
+for(let i=0;i<30;i++){
+
+let el=document.createElement("div");
+
+el.className="code-float";
+
+el.innerText=codes[Math.floor(Math.random()*codes.length)];
+
+el.style.left=Math.random()*100+"%";
+
+el.style.fontSize=(12+Math.random()*10)+"px";
+
+el.style.animationDuration=(12+Math.random()*20)+"s";
+
+document.body.appendChild(el);
+
+}
+
+
+/* open app */
+
+function openApp(){
+
+window.location.href="https://showmik007.github.io/App-development-/version7/";
+
+}
+
 </script>
 
 </body>

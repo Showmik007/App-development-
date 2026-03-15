@@ -2,7 +2,7 @@ window.APP_CONFIG = {
   APP_NAME: 'O-Level 27',
   USER_APP_SUBTITLE: 'Smart Student Dashboard',
   ADMIN_APP_TITLE: 'Admin App',
-  API_URL: 'https://script.google.com/macros/s/AKfycbwkyQmTCc_QIEtr0UZYhXspZYegGq5h64761WQ7cGN_VJ8eLt26tW5GJVV7BB1i6luILw/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec',
   TOKEN_KEYS: {
     USER: 'USER_TOKEN',
     ADMIN: 'ADMIN_TOKEN'

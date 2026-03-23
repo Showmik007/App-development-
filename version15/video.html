@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Video Player</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="content-body">
+<div class="player-shell">
+  <div class="card card-pad hero-card">
+    <div class="helper-row" style="margin-bottom:12px">
+      <div>
+        <div class="badge">Tutorial player</div>
+        <h1 id="titleText" class="video-player-title" style="margin:10px 0 0;font-size:clamp(20px,5vw,32px);letter-spacing:-.03em">Tutorial Video</h1>
+      </div>
+      <button class="btn" id="backBtn">Back</button>
+    </div>
+    <div class="screen-box" id="screenBox">
+      <div class="player-frame" id="frameBox"></div>
+    </div>
+    <div class="player-action-row">
+      <button class="btn player-action-btn" id="fullscreenBtn" type="button" aria-label="Open fullscreen video">
+        <span class="player-action-icon" aria-hidden="true">⛶</span>
+        <span id="fullscreenLabel">Fullscreen</span>
+      </button>
+      <button class="btn player-action-btn" id="rotateBtn" type="button" aria-label="Rotate video">
+        <span class="player-action-icon" aria-hidden="true">↻</span>
+        <span>Rotate</span>
+      </button>
+    </div>
+    <div class="subtext" id="playerHint" style="margin-top:10px">Playback stays inside the app.</div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const rawId = params.get('id') || '';
+const id = APP.extractYouTubeId(rawId);
+const title = decodeURIComponent(params.get('title') || 'Tutorial Video');
+document.getElementById('titleText').textContent = title || 'Tutorial Video';
+document.title = title || ((APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.VIDEO) || 'Video Player');
+document.getElementById('backBtn').addEventListener('click', function(){
+  try { parent.postMessage({ type: 'navigate', file: APP.cfg.PAGES.FEATURE1 }, '*'); }
+  catch (err) { if(document.referrer && history.length > 1) history.back(); else location.href = APP.cfg.PAGES.FEATURE1; }
+});
+const screenBox = document.getElementById('screenBox');
+const frameBox = document.getElementById('frameBox');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+const fullscreenLabel = document.getElementById('fullscreenLabel');
+const rotateBtn = document.getElementById('rotateBtn');
+const playerHint = document.getElementById('playerHint');
+let isRotated = false;
+
+function getFullscreenElement(){
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+function isPlayerFullscreen(){
+  const el = getFullscreenElement();
+  return !!el && (el === screenBox || screenBox.contains(el));
+}
+function updateLayout(){
+  const fullscreen = isPlayerFullscreen();
+  screenBox.classList.toggle('is-fullscreen', fullscreen);
+  frameBox.classList.toggle('rotated', isRotated);
+  if(isRotated){
+    let stageW;
+    if(fullscreen){
+      stageW = Math.min(window.innerHeight - 32, (window.innerWidth - 32) * 16 / 9);
+      frameBox.style.width = '100%';
+      frameBox.style.height = '100%';
+    } else {
+      stageW = Math.min(screenBox.clientWidth || frameBox.clientWidth || 360, 420);
+      frameBox.style.width = '100%';
+      frameBox.style.height = stageW + 'px';
+    }
+    const stageH = stageW * 9 / 16;
+    frameBox.style.setProperty('--stage-w', stageW + 'px');
+    frameBox.style.setProperty('--stage-h', stageH + 'px');
+  } else {
+    frameBox.style.removeProperty('--stage-w');
+    frameBox.style.removeProperty('--stage-h');
+    frameBox.style.width = '';
+    frameBox.style.height = '';
+  }
+  fullscreenLabel.textContent = fullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+  playerHint.textContent = isRotated ? 'Rotate toggles the video view inside the app.' : 'Playback stays inside the app.';
+}
+async function toggleFullscreen(){
+  try {
+    if(isPlayerFullscreen()){
+      if(document.exitFullscreen) await document.exitFullscreen();
+      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+      if(screenBox.requestFullscreen) await screenBox.requestFullscreen();
+      else if(screenBox.webkitRequestFullscreen) screenBox.webkitRequestFullscreen();
+    }
+  } catch (err) {
+    playerHint.textContent = 'Fullscreen is not available on this device.';
+  }
+  setTimeout(updateLayout, 30);
+}
+function toggleRotate(){
+  isRotated = !isRotated;
+  updateLayout();
+}
+fullscreenBtn.addEventListener('click', toggleFullscreen);
+rotateBtn.addEventListener('click', toggleRotate);
+document.addEventListener('fullscreenchange', updateLayout);
+document.addEventListener('webkitfullscreenchange', updateLayout);
+window.addEventListener('resize', updateLayout);
+
+if(id){
+  const src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+  frameBox.innerHTML = '<div class="player-stage"><iframe src="' + src + '" title="' + APP.escapeHtml(title) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+  updateLayout();
+} else {
+  fullscreenBtn.disabled = true;
+  rotateBtn.disabled = true;
+  frameBox.innerHTML = '<div class="empty-box">Invalid or missing YouTube video ID.</div>';
+}
+</script>
+</body>
+</html>

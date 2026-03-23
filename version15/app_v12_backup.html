@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-shell-body">
+<div class="shell-app">
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="closeSidebar" aria-label="Close menu">✕</button>
+    <div class="sidebar-head">
+      <div class="brand-title" id="brandTitle">O-Level 27</div>
+      <div class="brand-sub">Student dashboard</div>
+    </div>
+    <nav class="sidebar-nav" id="featureNav"></nav>
+    <div class="sidebar-footer">
+      <div class="quick-actions">
+        <div class="muted" style="margin-bottom:12px;font-size:14px">Quick actions</div>
+        <button class="btn btn-block" id="changePasswordBtn" style="margin-bottom:10px">Change Password</button>
+        <button class="btn btn-danger btn-block" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+  <main class="main-pane">
+    <header class="topbar">
+      <button class="menu-btn" id="openSidebar">Menu</button>
+      <div class="userbar">
+        <div class="avatar" id="avatar">S</div>
+        <div class="user-meta">
+          <h1 id="helloText">Hello</h1>
+          <p id="subText">Smart Student Dashboard</p>
+        </div>
+      </div>
+      <button class="chip-btn page-chip" id="pageChip">Home</button>
+    </header>
+    <div class="frame-wrap">
+      <iframe id="contentFrame" src="home.html" title="App content"></iframe>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="passwordModal">
+  <div class="card modal-card">
+    <div class="helper-row">
+      <div>
+        <div class="badge">Security</div>
+        <h2 style="margin:10px 0 0">Change password</h2>
+      </div>
+      <button class="icon-btn" id="closeModal">✕</button>
+    </div>
+    <div class="form-gap">
+      <input class="input" id="newPassword" type="password" placeholder="New password">
+      <button class="btn btn-primary btn-block" id="savePasswordBtn">Save Password</button>
+      <div class="msg" id="passwordMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+document.title = (APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.APP) || APP.cfg.APP_NAME || 'App';
+const $ = id => document.getElementById(id);
+const frame = $('contentFrame');
+const state = { current: APP.cfg.PAGES.HOME };
+function initials(name){ return (String(name||'S').trim().charAt(0) || 'S').toUpperCase(); }
+function openSidebar(){ $('sidebar').classList.add('open'); $('overlay').classList.add('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('overlay').classList.remove('show'); }
+function setCurrent(file){
+  state.current = file;
+  const feature = APP.cfg.FEATURES.find(f => f.file === file) || APP.cfg.FEATURES[0];
+  $('pageChip').textContent = feature ? feature.label : 'Page';
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.file === file));
+}
+function goTo(file){
+  if(!file || state.current === file){ closeSidebar(); return; }
+  setCurrent(file);
+  frame.src = file;
+  closeSidebar();
+}
+function renderNav(){
+  $('featureNav').innerHTML = APP.cfg.FEATURES.map(f =>
+    '<button class="nav-item" data-file="' + f.file + '"><span class="nav-icon">' + (f.icon || '•') + '</span><span>' + f.label + '</span></button>'
+  ).join('');
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => goTo(btn.dataset.file));
+  });
+  setCurrent(state.current);
+}
+function setUser(me){
+  const name = APP.normalizeText(me.username || me.principal || 'Student');
+  $('brandTitle').textContent = APP.cfg.APP_NAME;
+  $('helloText').textContent = 'Hello, ' + name;
+  $('subText').textContent = APP.cfg.USER_APP_SUBTITLE;
+  $('avatar').textContent = initials(name);
+}
+async function savePassword(){
+  const newPassword = $('newPassword').value;
+  const msg = $('passwordMsg');
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  try {
+    const r = await APP.apiGet({ action: 'user_change_password_get', token: APP.getToken('USER'), newPassword });
+    if(!r.ok) throw new Error(r.error || 'Failed');
+    msg.className = 'msg ok'; msg.textContent = 'Password updated';
+    setTimeout(() => { $('passwordModal').classList.remove('show'); $('newPassword').value = ''; msg.textContent = ''; }, 550);
+  } catch (err) {
+    msg.className = 'msg bad';
+    msg.textContent = err.message || 'Failed';
+  }
+}
+window.addEventListener('message', function(e){
+  const data = e.data || {};
+  if(data.type === 'set-page' && data.file){
+    setCurrent(data.file);
+  }
+  if(data.type === 'navigate' && data.file){
+    goTo(data.file);
+  }
+  if(data.type === 'open-menu') openSidebar();
+});
+$('openSidebar').addEventListener('click', openSidebar);
+$('closeSidebar').addEventListener('click', closeSidebar);
+$('overlay').addEventListener('click', closeSidebar);
+$('changePasswordBtn').addEventListener('click', function(){ $('passwordModal').classList.add('show'); closeSidebar(); });
+$('closeModal').addEventListener('click', function(){ $('passwordModal').classList.remove('show'); });
+$('savePasswordBtn').addEventListener('click', savePassword);
+$('logoutBtn').addEventListener('click', async function(){ await APP.logout('USER'); location.href = APP.cfg.PAGES.LOGIN; });
+renderNav();
+(async function(){
+  const me = await APP.requireUser();
+  if(me) setUser(me);
+})();
+</script>
+</body>
+</html>

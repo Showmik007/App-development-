@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Video Player</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="content-body">
+<div class="player-shell">
+  <div class="card card-pad hero-card">
+    <div class="helper-row" style="margin-bottom:12px">
+      <div>
+        <div class="badge">Tutorial player</div>
+        <h1 id="titleText" class="video-player-title" style="margin:10px 0 0;font-size:clamp(20px,5vw,32px);letter-spacing:-.03em">Tutorial Video</h1>
+      </div>
+      <button class="btn" id="backBtn">Back</button>
+    </div>
+    <div class="player-frame" id="frameBox"></div>
+    <div class="subtext" style="margin-top:10px">Playback stays inside the app.</div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const rawId = params.get('id') || '';
+const id = APP.extractYouTubeId(rawId);
+const title = decodeURIComponent(params.get('title') || 'Tutorial Video');
+document.getElementById('titleText').textContent = title || 'Tutorial Video';
+document.title = title || ((APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.VIDEO) || 'Video Player');
+document.getElementById('backBtn').addEventListener('click', function(){
+  if(document.referrer && history.length > 1) history.back(); else location.href = APP.cfg.PAGES.FEATURE1;
+});
+if(id){
+  const src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+  document.getElementById('frameBox').innerHTML = '<iframe src="' + src + '" title="' + APP.escapeHtml(title) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+} else {
+  document.getElementById('frameBox').innerHTML = '<div class="empty-box">Invalid or missing YouTube video ID.</div>';
+}
+</script>
+</body>
+</html>

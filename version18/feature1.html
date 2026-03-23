@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial Videos</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="content-body">
+<div class="page">
+  <div class="tracker-head card card-pad hero-card tracker-head-min">
+    <div class="toolbar tracker-mini-bar">
+      <div class="badge">Tutorial videos</div>
+    </div>
+  </div>
+
+  <div class="search-sticky-wrap">
+    <div class="card card-pad sticky-search-card">
+      <label class="form-label">Search tutorial</label>
+      <input class="input" id="searchInput" placeholder="Search title or description...">
+    </div>
+  </div>
+
+  <div class="controls-wrap">
+    <div class="card card-pad hero-card controls-card">
+      <div class="filters-grid">
+        <div>
+          <label class="form-label">Sort</label>
+          <select class="select" id="sortSelect">
+            <option value="serial-asc">Serial ↑</option>
+            <option value="serial-desc">Serial ↓</option>
+            <option value="title-asc">Title A-Z</option>
+            <option value="title-desc">Title Z-A</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Action</label>
+          <button class="btn btn-primary btn-block" id="refreshBtn">Reload list</button>
+        </div>
+      </div>
+      <div class="status-row compact-status"><span id="statusText">Loading tutorials…</span><span id="countText">0 videos</span></div>
+    </div>
+  </div>
+
+  <div class="video-grid" id="videoGrid"></div>
+</div>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+document.title = (APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.TUTORIAL) || 'Tutorial Videos';
+const CACHE_KEY = (APP.cfg.CACHE && APP.cfg.CACHE.TUTORIAL && APP.cfg.CACHE.TUTORIAL.KEY) || 'TUTORIAL_CACHE_V8';
+const TTL = (APP.cfg.CACHE && APP.cfg.CACHE.TUTORIAL && APP.cfg.CACHE.TUTORIAL.TTL_MS) || (1000 * 60 * 60 * 12);
+const state = { rows: [] };
+
+function postPage(){ try { parent.postMessage({ type: 'set-page', file: APP.cfg.PAGES.FEATURE1 }, '*'); } catch (err) {} }
+function cleanText(value){ return String(value || '').trim().replace(/^"(.*)"$/, '$1'); }
+function pick(row, keys){ for(const k of keys){ if(row[k] != null && String(row[k]).trim() !== '') return cleanText(row[k]); } return ''; }
+function serialNum(v){ return parseInt(cleanText(v), 10) || 0; }
+function normalizeVideo(row){
+  const rawVideo = pick(row, ['video link','vedio link','video','Video','Video Link','Link','URL','YouTube','Youtube']);
+  const id = APP.extractYouTubeId(rawVideo);
+  return {
+    serial: pick(row, ['serial number','serial','Serial','Serial Number']),
+    title: pick(row, ['title','Title','Topic','Name']) || 'Untitled Video',
+    description: pick(row, ['Description','description','Summary','Notes']),
+    rawVideo,
+    id
+  };
+}
+function getCache(){ const c = APP.getCache(CACHE_KEY); return c && Array.isArray(c.rows) && Date.now() - Number(c.at || 0) <= TTL ? c : null; }
+function thumbHtml(v){
+  return v.id
+    ? '<div class="thumb"><img src="https://img.youtube.com/vi/' + encodeURIComponent(v.id) + '/hqdefault.jpg" alt="Thumbnail" onerror="this.parentNode.innerHTML=\'<div class=&quot;thumb&quot; style=&quot;display:grid;place-items:center;color:#9db0d4&quot;>No thumbnail</div>\'"/></div>'
+    : '<div class="thumb" style="display:grid;place-items:center;color:#9db0d4">No thumbnail</div>';
+}
+function render(){
+  const q = $('searchInput').value.trim().toLowerCase();
+  const sort = $('sortSelect').value;
+  let rows = state.rows.filter(v => (v.title + ' ' + v.description).toLowerCase().includes(q));
+  rows.sort((a,b) => {
+    if(sort === 'serial-asc') return serialNum(a.serial) - serialNum(b.serial);
+    if(sort === 'serial-desc') return serialNum(b.serial) - serialNum(a.serial);
+    if(sort === 'title-desc') return b.title.localeCompare(a.title);
+    return a.title.localeCompare(b.title);
+  });
+  $('countText').textContent = rows.length + ' videos';
+  $('videoGrid').innerHTML = rows.map(v =>
+    '<button class="card video-card open-video" data-id="' + APP.escapeHtml(v.id) + '" data-title="' + APP.escapeHtml(v.title) + '">' +
+      thumbHtml(v) +
+      '<div class="video-title">' + APP.escapeHtml(v.title) + '</div>' +
+      '<div class="video-desc">' + APP.escapeHtml(v.description || 'Tap to play inside the app.') + '</div>' +
+      '<div class="badge">#' + APP.escapeHtml(v.serial || '-') + '</div>' +
+    '</button>'
+  ).join('') || '<div class="card card-pad empty-box">No tutorials found.</div>';
+  document.querySelectorAll('.open-video').forEach(btn => btn.addEventListener('click', function(){
+    const id = this.dataset.id || '';
+    const title = this.dataset.title || 'Tutorial Video';
+    if(!id){ alert('Invalid YouTube video ID in sheet.'); return; }
+    try { parent.postMessage({ type: 'navigate', file: APP.cfg.PAGES.VIDEO + '?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title) }, '*'); } catch (err) { location.href = APP.cfg.PAGES.VIDEO + '?id=' + encodeURIComponent(id) + '&title=' + encodeURIComponent(title); }
+  }));
+}
+async function loadVideos(force){
+  $('statusText').textContent = force ? 'Refreshing…' : 'Loading tutorials…';
+  if(!force){
+    const cached = getCache();
+    if(cached){
+      state.rows = cached.rows;
+      $('statusText').textContent = 'List ready';
+      render();
+      return;
+    }
+  }
+  try{
+    const r = await APP.apiGet({ action: 'tutorial_list', token: APP.getToken('USER'), sheet: APP.cfg.SHEETS.TUTORIAL });
+    if(!r.ok) throw new Error(r.error || 'Failed to load tutorials');
+    state.rows = (r.rows || []).map(normalizeVideo).filter(v => v.title || v.id);
+    APP.setCache(CACHE_KEY, { at: Date.now(), rows: state.rows });
+    $('statusText').textContent = 'List ready';
+    render();
+  }catch(err){
+    $('statusText').textContent = err.message || 'Failed to load tutorials';
+    $('videoGrid').innerHTML = '<div class="card card-pad empty-box">Tutorial videos could not be loaded.</div>';
+  }
+}
+$('searchInput').addEventListener('input', render);
+$('sortSelect').addEventListener('change', render);
+$('refreshBtn').addEventListener('click', () => { localStorage.removeItem(CACHE_KEY); loadVideos(true); });
+postPage();
+APP.requireUser().then(me => { if(me) loadVideos(false); });
+</script>
+</body>
+</html>

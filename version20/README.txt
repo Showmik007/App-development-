@@ -1,0 +1,26 @@
+VERSION 12 PACKAGE
+
+What changed:
+- Made the project more portable by centralizing frontend settings in config.js.
+- Added APP_VERSION, PAGE_TITLES, CACHE, and all sheet names in one place.
+- Tutorial page now uses config.js for its cache key, TTL, page navigation, and sheet name.
+- PDF page and tracker page now use centralized cache settings and page references.
+- Backend Code.gs now has one APP_SETTINGS object for all sheet tabs and token TTL.
+- Tutorial API can now read from the sheet name you set in config.js and Code.gs more easily.
+
+If you rename sheet tabs later:
+1. Update the names in config.js for the frontend.
+2. Update the names in APP_SETTINGS.SHEETS at the top of Code.gs for the backend.
+
+Files to deploy:
+- Code.gs
+- appsscript.json
+- config.js
+- common.js
+- styles.css
+- all HTML files
+
+Notes:
+- Existing design and functionality were kept the same.
+- Your current API_URL is still unchanged.
+- Version 11 already had the compact PDF UI; this package builds on that.

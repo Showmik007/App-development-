@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>App</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-shell-body app-booting">
+<div class="app-loader" id="appLoader" aria-live="polite">
+  <div class="app-loader-card">
+    <div class="badge">Loading app</div>
+    <h2 id="loaderLabel">Preparing your dashboard…</h2>
+    <div class="app-loader-track"><div class="app-loader-fill" id="appLoaderFill"></div></div>
+    <div class="app-loader-meta"><span id="appLoaderPercent">0%</span><span id="appLoaderStatus">Starting…</span></div>
+  </div>
+</div>
+<div class="shell-app">
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="closeSidebar" aria-label="Close menu">✕</button>
+    <div class="sidebar-head">
+      <div class="brand-title" id="brandTitle">O-Level 27</div>
+      <div class="brand-sub">Student dashboard</div>
+    </div>
+    <nav class="sidebar-nav" id="featureNav"></nav>
+    <div class="sidebar-footer">
+      <div class="quick-actions">
+        <div class="muted" style="margin-bottom:12px;font-size:14px">Quick actions</div>
+        <button class="btn btn-block" id="changePasswordBtn" style="margin-bottom:10px">Change Password</button>
+        <button class="btn btn-danger btn-block" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+  <main class="main-pane">
+    <header class="topbar">
+      <button class="menu-btn" id="openSidebar">Menu</button>
+      <div class="userbar">
+        <div class="avatar" id="avatar">S</div>
+        <div class="user-meta">
+          <h1 id="helloText">Hello</h1>
+          <p id="subText">Smart Student Dashboard</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="bell-btn" id="noticeBell" aria-label="Open notifications">
+          <span aria-hidden="true">🔔</span>
+          <span class="notice-count" id="noticeCountBadge" hidden>0</span>
+        </button>
+        <button class="chip-btn page-chip" id="pageChip">Home</button>
+      </div>
+    </header>
+    <div class="frame-wrap" id="frameWrap"></div>
+  </main>
+</div>
+
+<div class="modal" id="passwordModal">
+  <div class="card modal-card">
+    <div class="helper-row">
+      <div>
+        <div class="badge">Security</div>
+        <h2 style="margin:10px 0 0">Change password</h2>
+      </div>
+      <button class="icon-btn" id="closeModal">✕</button>
+    </div>
+    <div class="form-gap">
+      <input class="input" id="newPassword" type="password" placeholder="New password">
+      <button class="btn btn-primary btn-block" id="savePasswordBtn">Save Password</button>
+      <div class="msg" id="passwordMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="noticeModal">
+  <div class="card modal-card notice-modal-card">
+    <div class="helper-row">
+      <div>
+        <div class="badge">Notifications</div>
+        <h2 style="margin:10px 0 0">Latest notices</h2>
+      </div>
+      <button class="icon-btn" id="closeNoticeModal">✕</button>
+    </div>
+    <div class="notice-modal-status" id="noticeStatusText">Loading notices…</div>
+    <div class="notice-list" id="noticeList"></div>
+  </div>
+</div>
+
+<div class="modal" id="noticeDetailModal">
+  <div class="card modal-card notice-detail-card">
+    <div class="helper-row">
+      <div>
+        <div class="badge" id="noticeDetailPriority">Priority 1</div>
+        <h2 style="margin:10px 0 0" id="noticeDetailTitle">Notice title</h2>
+      </div>
+      <button class="icon-btn" id="closeNoticeDetail">✕</button>
+    </div>
+    <div class="notice-detail-text" id="noticeDetailText"></div>
+    <a class="btn btn-primary notice-link-btn" id="noticeDetailLink" href="#" target="_blank" rel="noopener" style="display:none">Open link</a>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+document.title = (APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.APP) || APP.cfg.APP_NAME || 'App';
+const $ = id => document.getElementById(id);
+const frameWrap = $('frameWrap');
+const MAIN_PAGES = new Set(APP.cfg.FEATURES.map(f => f.file));
+const NOTICE_CACHE_KEY = 'NOTICE_CACHE_V1';
+const NOTICE_TTL = 1000 * 60 * 5;
+
+const state = {
+  current: APP.cfg.PAGES.HOME,
+  activeFrameKey: null,
+  mainFrames: {},
+  tempFrame: null,
+  notices: [],
+  noticeLoaded: false,
+  loaderValue: 0,
+  loaderTimer: null,
+  loaderDone: false
+};
+
+function initials(name){ return (String(name||'S').trim().charAt(0) || 'S').toUpperCase(); }
+function openSidebar(){ $('sidebar').classList.add('open'); $('overlay').classList.add('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('overlay').classList.remove('show'); }
+function pageLabel(file){
+  const feature = APP.cfg.FEATURES.find(f => f.file === file);
+  if(feature) return feature.label;
+  if(file === APP.cfg.PAGES.VIDEO) return 'Tutorial Videos';
+  if(file === APP.cfg.PAGES.PDF_VIEWER) return 'PDF Notes';
+  return 'Page';
+}
+function setCurrent(file){
+  state.current = file;
+  $('pageChip').textContent = pageLabel(file);
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.file === file));
+}
+function makeFrame(src, key){
+  const iframe = document.createElement('iframe');
+  iframe.title = 'App content';
+  iframe.src = src;
+  iframe.dataset.key = key;
+  iframe.dataset.src = src;
+  iframe.style.display = 'none';
+  iframe.setAttribute('loading', 'eager');
+  frameWrap.appendChild(iframe);
+  return iframe;
+}
+function showOnly(iframe){
+  Array.from(frameWrap.querySelectorAll('iframe')).forEach(f => { f.style.display = f === iframe ? 'block' : 'none'; });
+}
+function ensureMainFrame(file){
+  if(!state.mainFrames[file]) state.mainFrames[file] = makeFrame(file, file);
+  return state.mainFrames[file];
+}
+function openTemporary(file){
+  if(state.tempFrame) state.tempFrame.remove();
+  state.tempFrame = makeFrame(file, '__temp__');
+  showOnly(state.tempFrame);
+  state.activeFrameKey = '__temp__';
+}
+function goTo(file){
+  if(!file){ closeSidebar(); return; }
+  setCurrent(file);
+  if(MAIN_PAGES.has(file)){
+    const frame = ensureMainFrame(file);
+    showOnly(frame);
+    state.activeFrameKey = file;
+    if(state.tempFrame){ state.tempFrame.remove(); state.tempFrame = null; }
+  } else {
+    openTemporary(file);
+  }
+  closeSidebar();
+}
+function renderNav(){
+  $('featureNav').innerHTML = APP.cfg.FEATURES.map(f =>
+    '<button class="nav-item" data-file="' + f.file + '"><span class="nav-icon">' + (f.icon || '•') + '</span><span>' + f.label + '</span></button>'
+  ).join('');
+  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => goTo(btn.dataset.file)));
+  setCurrent(state.current);
+}
+function setUser(me){
+  const name = APP.normalizeText(me.username || me.principal || 'Student');
+  $('brandTitle').textContent = APP.cfg.APP_NAME;
+  $('helloText').textContent = 'Hello, ' + name;
+  $('subText').textContent = APP.cfg.USER_APP_SUBTITLE;
+  $('avatar').textContent = initials(name);
+}
+async function savePassword(){
+  const newPassword = $('newPassword').value;
+  const msg = $('passwordMsg');
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  try {
+    const r = await APP.apiGet({ action: 'user_change_password_get', token: APP.getToken('USER'), newPassword });
+    if(!r.ok) throw new Error(r.error || 'Failed');
+    msg.className = 'msg ok'; msg.textContent = 'Password updated';
+    setTimeout(() => { $('passwordModal').classList.remove('show'); $('newPassword').value = ''; msg.textContent = ''; }, 550);
+  } catch (err) {
+    msg.className = 'msg bad';
+    msg.textContent = err.message || 'Failed';
+  }
+}
+function setLoader(value, status){
+  state.loaderValue = Math.max(0, Math.min(100, Math.round(value)));
+  $('appLoaderFill').style.width = state.loaderValue + '%';
+  $('appLoaderPercent').textContent = state.loaderValue + '%';
+  if(status) $('appLoaderStatus').textContent = status;
+}
+function startLoader(){
+  setLoader(4, 'Starting…');
+  state.loaderTimer = setInterval(function(){
+    if(state.loaderDone) return;
+    const next = state.loaderValue + (state.loaderValue < 45 ? 9 : state.loaderValue < 72 ? 5 : 2);
+    setLoader(Math.min(92, next), state.loaderValue < 45 ? 'Checking session…' : 'Loading data…');
+  }, 160);
+}
+function finishLoader(){
+  state.loaderDone = true;
+  clearInterval(state.loaderTimer);
+  setLoader(100, 'Ready');
+  $('loaderLabel').textContent = 'Dashboard ready';
+  setTimeout(function(){
+    document.body.classList.remove('app-booting');
+    $('appLoader').classList.add('hide');
+    setTimeout(function(){ $('appLoader').remove(); }, 360);
+  }, 220);
+}
+function cleanText(value){ return String(value == null ? '' : value).trim().replace(/^"(.*)"$/, '$1'); }
+function pick(row, keys){ for(const k of keys){ if(row[k] != null && String(row[k]).trim() !== '') return cleanText(row[k]); } return ''; }
+function normalizeNotice(row, index){
+  const priorityRaw = pick(row, ['priority','Priority','priority level','Priority Level']);
+  const priority = Math.max(1, Math.min(5, parseInt(priorityRaw, 10) || 1));
+  return {
+    id: index + '-' + pick(row, ['title','Title']) + '-' + priority,
+    title: pick(row, ['title','Title']) || 'Untitled notice',
+    text: pick(row, ['text','Text','description','Description','notice','Notice']),
+    priority,
+    link: pick(row, ['link','Link','url','URL'])
+  };
+}
+function priorityTone(n){ return ['low','low','mid','high','urgent'][Math.max(0, Math.min(4, Number(n || 1) - 1))]; }
+function renderNoticeBadge(){
+  const badge = $('noticeCountBadge');
+  if(!state.notices.length){
+    badge.hidden = true;
+    return;
+  }
+  badge.hidden = false;
+  badge.textContent = String(state.notices.length);
+}
+function renderNotices(){
+  const list = $('noticeList');
+  if(!state.notices.length){
+    list.innerHTML = '<div class="empty-box card card-pad">No notices found in the sheet.</div>';
+    return;
+  }
+  list.innerHTML = state.notices.map(function(item, idx){
+    return '<button class="notice-item notice-priority-' + item.priority + '" data-index="' + idx + '">' +
+      '<span class="notice-item-title">' + APP.escapeHtml(item.title) + '</span>' +
+      '<span class="notice-item-meta">Priority ' + item.priority + '</span>' +
+    '</button>';
+  }).join('');
+  list.querySelectorAll('.notice-item').forEach(function(btn){
+    btn.addEventListener('click', function(){ openNoticeDetail(Number(this.dataset.index || 0)); });
+  });
+}
+function openNoticeModal(){ $('noticeModal').classList.add('show'); }
+function closeNoticeModal(){ $('noticeModal').classList.remove('show'); }
+function openNoticeDetail(index){
+  const item = state.notices[index];
+  if(!item) return;
+  $('noticeDetailPriority').textContent = 'Priority ' + item.priority;
+  $('noticeDetailPriority').className = 'badge notice-badge-detail priority-' + priorityTone(item.priority);
+  $('noticeDetailTitle').textContent = item.title;
+  $('noticeDetailText').textContent = item.text || 'No details added.';
+  const link = $('noticeDetailLink');
+  if(item.link){
+    link.style.display = 'inline-flex';
+    link.href = item.link;
+  } else {
+    link.style.display = 'none';
+    link.removeAttribute('href');
+  }
+  $('noticeDetailModal').classList.add('show');
+}
+function closeNoticeDetail(){ $('noticeDetailModal').classList.remove('show'); }
+async function loadNotices(force){
+  $('noticeStatusText').textContent = force ? 'Refreshing notices…' : 'Loading notices…';
+  if(!force){
+    const cached = APP.getCache(NOTICE_CACHE_KEY);
+    if(cached && Array.isArray(cached.rows) && Date.now() - Number(cached.at || 0) <= NOTICE_TTL){
+      state.notices = cached.rows;
+      state.noticeLoaded = true;
+      $('noticeStatusText').textContent = state.notices.length ? 'Tap a title to open the full notice.' : 'No notices available.';
+      renderNoticeBadge();
+      renderNotices();
+      return;
+    }
+  }
+  try {
+    const r = await APP.apiGet({ action: 'notice_list', token: APP.getToken('USER'), sheet: APP.cfg.SHEETS.NOTICES });
+    if(!r.ok) throw new Error(r.error || 'Failed to load notices');
+    state.notices = (r.rows || []).map(normalizeNotice).filter(function(item){ return item.title || item.text; }).sort(function(a,b){ return b.priority - a.priority || a.title.localeCompare(b.title); });
+    APP.setCache(NOTICE_CACHE_KEY, { at: Date.now(), rows: state.notices });
+    state.noticeLoaded = true;
+    $('noticeStatusText').textContent = state.notices.length ? 'Tap a title to open the full notice.' : 'No notices available.';
+  } catch (err) {
+    state.notices = [];
+    $('noticeStatusText').textContent = err.message || 'Failed to load notices';
+  }
+  renderNoticeBadge();
+  renderNotices();
+}
+window.addEventListener('message', function(e){
+  const data = e.data || {};
+  if(data.type === 'set-page' && data.file){ setCurrent(data.file); return; }
+  if(data.type === 'navigate' && data.file){ document.body.classList.remove('video-overlay-active'); goTo(data.file); return; }
+  if(data.type === 'open-menu'){ openSidebar(); return; }
+  if(data.type === 'video-overlay'){ document.body.classList.toggle('video-overlay-active', !!data.active); return; }
+});
+$('openSidebar').addEventListener('click', openSidebar);
+$('closeSidebar').addEventListener('click', closeSidebar);
+$('overlay').addEventListener('click', closeSidebar);
+$('changePasswordBtn').addEventListener('click', function(){ $('passwordModal').classList.add('show'); closeSidebar(); });
+$('closeModal').addEventListener('click', function(){ $('passwordModal').classList.remove('show'); });
+$('savePasswordBtn').addEventListener('click', savePassword);
+$('logoutBtn').addEventListener('click', async function(){ await APP.logout('USER'); location.href = APP.cfg.PAGES.LOGIN; });
+$('noticeBell').addEventListener('click', function(){ openNoticeModal(); if(!state.noticeLoaded) loadNotices(false); });
+$('closeNoticeModal').addEventListener('click', closeNoticeModal);
+$('closeNoticeDetail').addEventListener('click', closeNoticeDetail);
+$('noticeModal').addEventListener('click', function(e){ if(e.target === this) closeNoticeModal(); });
+$('noticeDetailModal').addEventListener('click', function(e){ if(e.target === this) closeNoticeDetail(); });
+renderNav();
+goTo(APP.cfg.PAGES.HOME);
+startLoader();
+(async function(){
+  try {
+    const me = await APP.requireUser();
+    if(me) setUser(me);
+    setLoader(82, 'Loading notices…');
+    await loadNotices(false);
+    finishLoader();
+  } catch (err) {
+    finishLoader();
+  }
+})();
+</script>
+</body>
+</html>

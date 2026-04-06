@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>PDF Viewer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="pdf-reader-body pdf-ui-visible pdf-v22-body">
+<button class="pdf-floating-toggle" id="toolbarToggle" type="button" aria-label="Hide or show PDF controls">☰</button>
+
+<div class="pdf-nav-bar pdf-nav-modern pdf-nav-v22" id="pdfNavBar">
+  <div class="pdf-nav-left pdf-nav-left-v22">
+    <button class="pdf-reader-back" id="backBtn" type="button">Back</button>
+    <div class="pdf-title-pill" id="titlePill">PDF Viewer</div>
+  </div>
+
+  <div class="pdf-nav-group pdf-nav-group-modern pdf-nav-group-v22" id="pageNavGroup">
+    <button class="pdf-nav-btn" id="prevBtn" type="button">Prev</button>
+    <label class="pdf-page-jump" for="pageInput" id="pageJumpWrap">
+      <input id="pageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="Page number">
+      <span id="pageTotalText">/ 1</span>
+    </label>
+    <button class="pdf-nav-btn" id="nextBtn" type="button">Next</button>
+
+    <div class="pdf-divider" aria-hidden="true"></div>
+
+    <button class="pdf-nav-btn" id="zoomOutBtn" type="button">−</button>
+    <div class="pdf-zoom-pill" id="zoomText">Fit</div>
+    <button class="pdf-nav-btn" id="zoomInBtn" type="button">+</button>
+    <button class="pdf-nav-btn" id="fitBtn" type="button">Fit</button>
+    <button class="pdf-nav-btn" id="downloadBtn" type="button">Download</button>
+    <button class="pdf-nav-btn" id="openBtn" type="button">Open</button>
+  </div>
+</div>
+
+<div class="pdf-mobile-dock" id="mobileDock">
+  <button class="pdf-dock-btn" id="mobilePrevBtn" type="button">◀</button>
+  <button class="pdf-dock-btn" id="mobileZoomOutBtn" type="button">−</button>
+  <button class="pdf-dock-center" id="mobileToolbarBtn" type="button">Tools</button>
+  <button class="pdf-dock-btn" id="mobileZoomInBtn" type="button">+</button>
+  <button class="pdf-dock-btn" id="mobileNextBtn" type="button">▶</button>
+</div>
+
+<div class="pdf-reader-shell single-page pdf-reader-shell-modern pdf-reader-shell-v22" id="viewerShell">
+  <div class="pdf-reader-status" id="statusText">Loading PDF…</div>
+
+  <div class="pdf-single-wrap pdf-single-wrap-modern pdf-single-wrap-v22" id="canvasWrap">
+    <div class="pdf-single-card pdf-single-card-modern pdf-single-card-v22" id="canvasCard">
+      <div class="pdf-canvas-stage pdf-canvas-stage-v22" id="canvasStage">
+        <canvas class="pdf-page-canvas single" id="pdfCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="pdf-embed-wrap pdf-embed-wrap-modern pdf-embed-wrap-v22" id="embedWrap" hidden>
+    <iframe id="embedFrame" class="pdf-embed-frame" title="PDF preview" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const title = decodeURIComponent(params.get('title') || 'PDF Note');
+  const rawPdfUrl = decodeURIComponent(params.get('file') || params.get('url') || '');
+
+  document.title = title || ((APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.PDF_VIEWER) || 'PDF Viewer');
+
+  const statusEl = document.getElementById('statusText');
+  const backBtn = document.getElementById('backBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const mobilePrevBtn = document.getElementById('mobilePrevBtn');
+  const mobileNextBtn = document.getElementById('mobileNextBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const mobileZoomInBtn = document.getElementById('mobileZoomInBtn');
+  const mobileZoomOutBtn = document.getElementById('mobileZoomOutBtn');
+  const fitBtn = document.getElementById('fitBtn');
+  const zoomText = document.getElementById('zoomText');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const openBtn = document.getElementById('openBtn');
+  const toolbarToggle = document.getElementById('toolbarToggle');
+  const mobileToolbarBtn = document.getElementById('mobileToolbarBtn');
+  const titlePill = document.getElementById('titlePill');
+  const pageInput = document.getElementById('pageInput');
+  const pageTotalText = document.getElementById('pageTotalText');
+  const pageNavGroup = document.getElementById('pageNavGroup');
+  const pageJumpWrap = document.getElementById('pageJumpWrap');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const embedWrap = document.getElementById('embedWrap');
+  const embedFrame = document.getElementById('embedFrame');
+  const canvas = document.getElementById('pdfCanvas');
+  const shell = document.getElementById('viewerShell');
+  const canvasCard = document.getElementById('canvasCard');
+  const canvasStage = document.getElementById('canvasStage');
+  const ctx = canvas.getContext('2d', { alpha:false });
+
+  titlePill.textContent = title || 'PDF Viewer';
+
+  let pdfDoc = null;
+  let pageNum = 1;
+  let rendering = false;
+  let pendingPage = null;
+  let resizeTimer = null;
+  let zoomMode = 'fit';
+  let zoomScale = 1;
+  let hideTimer = null;
+  let lastTapAt = 0;
+  let isEmbedMode = false;
+
+  function isMobileView(){ return window.innerWidth <= 760; }
+
+  backBtn.addEventListener('click', function(){
+    try { parent.postMessage({ type: 'navigate', file: APP.cfg.PAGES.PDFS }, '*'); }
+    catch (err) { if(document.referrer && history.length > 1) history.back(); else location.href = APP.cfg.PAGES.PDFS; }
+  });
+
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); });
+
+  function setControlsVisible(show, autoHide){
+    document.body.classList.toggle('pdf-ui-visible', !!show);
+    if(hideTimer) clearTimeout(hideTimer);
+    if(show && autoHide && isMobileView() && !isEmbedMode){
+      hideTimer = setTimeout(function(){
+        document.body.classList.remove('pdf-ui-visible');
+      }, 2200);
+    }
+  }
+
+  function nudgeControls(){ setControlsVisible(true, true); }
+
+  toolbarToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    const willShow = !document.body.classList.contains('pdf-ui-visible');
+    setControlsVisible(willShow, false);
+  });
+  mobileToolbarBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    const willShow = !document.body.classList.contains('pdf-ui-visible');
+    setControlsVisible(willShow, false);
+  });
+
+  shell.addEventListener('click', function(e){
+    const target = e.target;
+    if(target === canvas || target === canvasStage || target === canvasCard || target === canvasWrap){
+      const willShow = !document.body.classList.contains('pdf-ui-visible');
+      setControlsVisible(willShow, false);
+      return;
+    }
+    nudgeControls();
+  });
+
+  shell.addEventListener('touchstart', function(e){
+    const now = Date.now();
+    if(e.target === canvas && now - lastTapAt < 300){
+      if(zoomMode === 'fit'){
+        zoomMode = 'manual';
+        zoomScale = Math.min(Math.max((zoomScale || 1) + 0.45, 1.25), 3.5);
+      } else {
+        zoomMode = 'fit';
+      }
+      queuePage(pageNum);
+      e.preventDefault();
+    }
+    lastTapAt = now;
+    nudgeControls();
+  }, { passive:false });
+
+  document.addEventListener('keydown', function(e){
+    const key = String(e.key || '').toLowerCase();
+    nudgeControls();
+    if((e.ctrlKey || e.metaKey) && (key === 'p' || key === 's' || key === '=' || key === '-' || key === '0')){
+      if(key === 'p' || key === 's') e.preventDefault();
+    }
+    if(!isEmbedMode){
+      if(key === 'arrowleft') showPrev();
+      if(key === 'arrowright') showNext();
+      if(key === 'enter' && document.activeElement === pageInput) jumpToInput();
+      if((e.ctrlKey || e.metaKey) && (key === '+' || key === '=')){ e.preventDefault(); adjustZoom(0.15); }
+      if((e.ctrlKey || e.metaKey) && key === '-'){ e.preventDefault(); adjustZoom(-0.15); }
+      if((e.ctrlKey || e.metaKey) && key === '0'){ e.preventDefault(); setFitMode(); }
+      if(key === 'h'){ setControlsVisible(!document.body.classList.contains('pdf-ui-visible'), false); }
+    }
+  });
+
+  function setStatus(msg, isError){
+    statusEl.textContent = msg;
+    statusEl.classList.toggle('error', !!isError);
+  }
+
+  function getDriveFileId(input){
+    const raw = String(input || '').trim();
+    if(!raw) return '';
+    const fileMatch = raw.match(/\/file\/d\/([^\/?#]+)/i);
+    if(fileMatch) return fileMatch[1];
+    try {
+      const u = new URL(raw);
+      if(u.hostname.includes('drive.google.com')) return u.searchParams.get('id') || '';
+    } catch (err) {}
+    return '';
+  }
+
+  function buildPdfJsUrl(input){
+    const raw = String(input || '').trim();
+    if(!raw) return '';
+    const driveId = getDriveFileId(raw);
+    if(driveId) return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(driveId);
+    return raw;
+  }
+
+  function buildEmbedUrl(input){
+    const raw = String(input || '').trim();
+    const driveId = getDriveFileId(raw);
+    if(driveId) return 'https://drive.google.com/file/d/' + encodeURIComponent(driveId) + '/preview';
+    return 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(raw);
+  }
+
+  function updateActionLabels(){
+    downloadBtn.textContent = isMobileView() ? 'Save' : 'Download';
+  }
+
+  function showEmbedMode(message){
+    isEmbedMode = true;
+    canvasWrap.hidden = true;
+    embedWrap.hidden = false;
+    pageNavGroup.classList.add('pdf-nav-disabled');
+    [prevBtn,nextBtn,pageInput,zoomOutBtn,zoomInBtn,fitBtn,mobilePrevBtn,mobileNextBtn,mobileZoomOutBtn,mobileZoomInBtn].forEach(function(el){ if(el) el.disabled = true; });
+    pageJumpWrap.title = 'Viewer controls are unavailable in preview mode';
+    embedFrame.src = buildEmbedUrl(rawPdfUrl);
+    updateActionLabels();
+    setStatus(message || 'Preview mode enabled', false);
+    setControlsVisible(true, false);
+  }
+
+  function clampPage(n){
+    if(!pdfDoc) return 1;
+    n = Number(n) || 1;
+    return Math.max(1, Math.min(pdfDoc.numPages, n));
+  }
+
+  function updateNav(){
+    const total = pdfDoc ? pdfDoc.numPages : 1;
+    pageInput.value = String(pageNum);
+    pageInput.max = String(total);
+    pageTotalText.textContent = '/ ' + total;
+    prevBtn.disabled = pageNum <= 1;
+    nextBtn.disabled = pageNum >= total;
+    mobilePrevBtn.disabled = prevBtn.disabled;
+    mobileNextBtn.disabled = nextBtn.disabled;
+    zoomText.textContent = zoomMode === 'fit' ? 'Fit' : Math.round(zoomScale * 100) + '%';
+    updateActionLabels();
+  }
+
+  function currentCardWidth(){
+    const sideGap = isMobileView() ? 10 : 30;
+    return Math.max(Math.min(shell.clientWidth - sideGap, 1280), 240);
+  }
+
+  function calcScale(page){
+    const baseViewport = page.getViewport({ scale: 1 });
+    const fitScale = currentCardWidth() / baseViewport.width;
+    if(zoomMode === 'fit') return Math.max(0.45, Math.min(fitScale, 2.2));
+    return Math.max(0.45, Math.min(zoomScale, 3.5));
+  }
+
+  async function renderPage(num){
+    if(!pdfDoc) return;
+    rendering = true;
+    const safeNum = clampPage(num);
+    pageNum = safeNum;
+    updateNav();
+    setStatus('Rendering page ' + safeNum + ' of ' + pdfDoc.numPages + '…', false);
+
+    try {
+      const page = await pdfDoc.getPage(safeNum);
+      const scale = calcScale(page);
+      if(zoomMode === 'fit') zoomScale = scale;
+      const viewport = page.getViewport({ scale: scale });
+      const outputScale = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = Math.floor(viewport.width) + 'px';
+      canvas.style.height = Math.floor(viewport.height) + 'px';
+      canvasCard.style.maxWidth = zoomMode === 'fit' ? '100%' : Math.ceil(viewport.width + 20) + 'px';
+
+      await page.render({
+        canvasContext: ctx,
+        viewport,
+        transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+      }).promise;
+
+      updateNav();
+      setStatus(title + ' • Page ' + safeNum + ' of ' + pdfDoc.numPages, false);
+    } catch (err) {
+      console.error(err);
+      setStatus('Failed to render PDF page', true);
+    }
+
+    rendering = false;
+    if(pendingPage !== null){
+      const next = pendingPage;
+      pendingPage = null;
+      renderPage(next);
+    }
+  }
+
+  function queuePage(num){
+    const safeNum = clampPage(num);
+    if(rendering) pendingPage = safeNum;
+    else renderPage(safeNum);
+  }
+
+  function showPrev(){ if(pdfDoc && pageNum > 1){ queuePage(pageNum - 1); nudgeControls(); } }
+  function showNext(){ if(pdfDoc && pageNum < pdfDoc.numPages){ queuePage(pageNum + 1); nudgeControls(); } }
+  function jumpToInput(){ if(pdfDoc) queuePage(pageInput.value); }
+
+  function adjustZoom(delta){
+    if(!pdfDoc || isEmbedMode) return;
+    zoomMode = 'manual';
+    zoomScale = Math.max(0.45, Math.min((zoomScale || 1) + delta, 3.5));
+    queuePage(pageNum);
+  }
+
+  function setFitMode(){
+    if(!pdfDoc || isEmbedMode) return;
+    zoomMode = 'fit';
+    queuePage(pageNum);
+  }
+
+  async function downloadPdf(){
+    if(!rawPdfUrl) return;
+    nudgeControls();
+    setStatus('Preparing file…', false);
+
+    const fileName = (title || 'document').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.pdf';
+    const targetUrl = buildPdfJsUrl(rawPdfUrl);
+
+    if(navigator.share && isMobileView()){
+      try {
+        const response = await fetch(targetUrl, { mode: 'cors', credentials: 'omit' });
+        if(!response.ok) throw new Error('Download fetch failed');
+        const blob = await response.blob();
+        const file = new File([blob], fileName, { type: 'application/pdf' });
+        if(!navigator.canShare || navigator.canShare({ files:[file] })){
+          await navigator.share({ files:[file], title: title || 'PDF', text: title || 'PDF' });
+          setStatus('File ready to save or share', false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Share flow failed', err);
+      }
+    }
+
+    try {
+      const response = await fetch(targetUrl, { mode: 'cors', credentials: 'omit' });
+      if(!response.ok) throw new Error('Download fetch failed');
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 4000);
+      setStatus('Download started', false);
+    } catch (err) {
+      console.warn('Direct download fallback', err);
+      try {
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setStatus('Opened file in a new tab for saving', false);
+      } catch (err2) {
+        location.href = targetUrl;
+      }
+    }
+  }
+
+  function openExternal(){
+    const targetUrl = getDriveFileId(rawPdfUrl)
+      ? 'https://drive.google.com/file/d/' + encodeURIComponent(getDriveFileId(rawPdfUrl)) + '/view'
+      : rawPdfUrl;
+    window.open(targetUrl, '_blank', 'noopener');
+  }
+
+  prevBtn.addEventListener('click', showPrev);
+  nextBtn.addEventListener('click', showNext);
+  mobilePrevBtn.addEventListener('click', showPrev);
+  mobileNextBtn.addEventListener('click', showNext);
+  pageInput.addEventListener('change', jumpToInput);
+  pageInput.addEventListener('blur', jumpToInput);
+  zoomInBtn.addEventListener('click', function(){ adjustZoom(0.15); });
+  zoomOutBtn.addEventListener('click', function(){ adjustZoom(-0.15); });
+  mobileZoomInBtn.addEventListener('click', function(){ adjustZoom(0.15); });
+  mobileZoomOutBtn.addEventListener('click', function(){ adjustZoom(-0.15); });
+  fitBtn.addEventListener('click', setFitMode);
+  downloadBtn.addEventListener('click', downloadPdf);
+  openBtn.addEventListener('click', openExternal);
+
+  if(!rawPdfUrl){
+    setStatus('Missing PDF file link', true);
+    return;
+  }
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  async function loadPdf(){
+    const pdfUrl = buildPdfJsUrl(rawPdfUrl);
+    const isDrive = !!getDriveFileId(rawPdfUrl);
+    try {
+      setStatus('Loading PDF…', false);
+      pdfDoc = await pdfjsLib.getDocument({ url: pdfUrl, withCredentials: false }).promise;
+      updateNav();
+      queuePage(pageNum);
+      setControlsVisible(true, true);
+    } catch (err) {
+      console.error(err);
+      showEmbedMode(isDrive ? 'Opened in Google Drive preview mode' : 'Opened in preview mode');
+    }
+  }
+
+  window.addEventListener('resize', function(){
+    updateActionLabels();
+    if(!pdfDoc || isEmbedMode) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      if(zoomMode === 'fit') queuePage(pageNum);
+      else updateNav();
+    }, 140);
+  });
+
+  updateActionLabels();
+  loadPdf();
+})();
+</script>
+</body>
+</html>

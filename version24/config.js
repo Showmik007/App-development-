@@ -15,7 +15,7 @@ window.APP_CONFIG = {
     VIDEO: 'Video Player',
     MYPOST: 'My Post'
   },
-  API_URL: https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwSH8UmHBBvRY8pK8PdWzGsP-BsQfc3hqgPkGwVFoTB0oIyFbLeqA9LWyOSd8iVJtO9/exec',
   TOKEN_KEYS: {
     USER: 'USER_TOKEN',
     ADMIN: 'ADMIN_TOKEN'

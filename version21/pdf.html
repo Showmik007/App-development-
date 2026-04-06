@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>PDF Viewer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="pdf-reader-body pdf-reader-v21">
+<div class="pdf-nav-bar pdf-nav-bar-v21" id="pdfNavBar">
+  <div class="pdf-nav-main-row">
+    <button class="pdf-reader-back" id="backBtn" type="button">Back</button>
+    <div class="pdf-nav-group" id="pageNavGroup">
+      <button class="pdf-nav-btn" id="prevBtn" type="button">Prev</button>
+      <label class="pdf-page-jump" for="pageInput" id="pageJumpWrap">
+        <input id="pageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="Page number">
+        <span id="pageTotalText">/ 1</span>
+      </label>
+      <button class="pdf-nav-btn" id="nextBtn" type="button">Next</button>
+    </div>
+  </div>
+  <div class="pdf-nav-tools-row">
+    <div class="pdf-zoom-group">
+      <button class="pdf-nav-btn" id="zoomOutBtn" type="button" aria-label="Zoom out">−</button>
+      <button class="pdf-zoom-chip" id="zoomLabel" type="button" aria-label="Current zoom">100%</button>
+      <button class="pdf-nav-btn" id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
+      <button class="pdf-nav-btn" id="fitBtn" type="button">Fit</button>
+    </div>
+    <div class="pdf-marking-group">
+      <button class="pdf-nav-btn" id="downloadBtn" type="button">Download</button>
+      <button class="pdf-nav-btn" id="markToggleBtn" type="button">Mark Off</button>
+      <button class="pdf-nav-btn" id="toolPenBtn" type="button">Pen</button>
+      <button class="pdf-nav-btn" id="toolHighlighterBtn" type="button">Highlight</button>
+      <button class="pdf-nav-btn" id="eraserBtn" type="button">Eraser</button>
+      <button class="pdf-nav-btn" id="clearPageBtn" type="button">Clear Page</button>
+    </div>
+  </div>
+</div>
+
+<div class="pdf-reader-shell single-page pdf-reader-shell-v21">
+  <div class="pdf-reader-status" id="statusText">Loading PDF…</div>
+  <div class="pdf-reader-meta-bar">
+    <div class="pdf-title-chip" id="docTitleChip">PDF Note</div>
+    <div class="pdf-save-chip" id="saveStateChip">Marks saved on this device</div>
+  </div>
+  <div class="pdf-single-wrap" id="canvasWrap">
+    <div class="pdf-single-card pdf-single-card-v21">
+      <div class="pdf-canvas-stage" id="canvasStage">
+        <canvas class="pdf-page-canvas single" id="pdfCanvas"></canvas>
+        <canvas class="pdf-annotation-canvas" id="annotationCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="pdf-embed-wrap" id="embedWrap" hidden>
+    <iframe id="embedFrame" class="pdf-embed-frame" title="PDF preview" loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const title = decodeURIComponent(params.get('title') || 'PDF Note');
+  const rawPdfUrl = decodeURIComponent(params.get('file') || params.get('url') || '');
+
+  document.title = title || ((APP.cfg.PAGE_TITLES && APP.cfg.PAGE_TITLES.PDF_VIEWER) || 'PDF Viewer');
+
+  const statusEl = document.getElementById('statusText');
+  const backBtn = document.getElementById('backBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const pageInput = document.getElementById('pageInput');
+  const pageTotalText = document.getElementById('pageTotalText');
+  const pageNavGroup = document.getElementById('pageNavGroup');
+  const pageJumpWrap = document.getElementById('pageJumpWrap');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const fitBtn = document.getElementById('fitBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const markToggleBtn = document.getElementById('markToggleBtn');
+  const toolPenBtn = document.getElementById('toolPenBtn');
+  const toolHighlighterBtn = document.getElementById('toolHighlighterBtn');
+  const eraserBtn = document.getElementById('eraserBtn');
+  const clearPageBtn = document.getElementById('clearPageBtn');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const embedWrap = document.getElementById('embedWrap');
+  const embedFrame = document.getElementById('embedFrame');
+  const canvas = document.getElementById('pdfCanvas');
+  const annotationCanvas = document.getElementById('annotationCanvas');
+  const canvasStage = document.getElementById('canvasStage');
+  const saveStateChip = document.getElementById('saveStateChip');
+  const docTitleChip = document.getElementById('docTitleChip');
+  const shell = document.querySelector('.pdf-reader-shell');
+  const pdfCtx = canvas.getContext('2d', { alpha:false });
+  const markCtx = annotationCanvas.getContext('2d');
+
+  const STORAGE_PREFIX = 'PDF_MARKUP_CACHE_V21::';
+  const TOOL_CONFIG = {
+    pen: { lineWidth: 2.4, color: '#ff5578', alpha: 1 },
+    highlighter: { lineWidth: 18, color: '#ffe45a', alpha: 0.28 },
+    eraser: { lineWidth: 24, color: 'rgba(0,0,0,1)', alpha: 1 }
+  };
+
+  let pdfDoc = null;
+  let pageNum = 1;
+  let rendering = false;
+  let pendingPage = null;
+  let renderToken = 0;
+  let currentViewport = null;
+  let fitScale = 1;
+  let zoomScale = 1;
+  let isFitMode = true;
+  let markMode = false;
+  let currentTool = 'pen';
+  let isDrawing = false;
+  let currentStroke = null;
+  let docCache = { pages: {}, updatedAt: 0 };
+  let saveTimer = 0;
+
+  const docId = createDocId(rawPdfUrl || title || 'pdf');
+  docTitleChip.textContent = title || 'PDF Note';
+
+  backBtn.addEventListener('click', function(){
+    try { parent.postMessage({ type: 'navigate', file: APP.cfg.PAGES.PDFS }, '*'); }
+    catch (err) { if(document.referrer && history.length > 1) history.back(); else location.href = APP.cfg.PAGES.PDFS; }
+  });
+
+  document.addEventListener('contextmenu', function(e){ if(markMode) e.preventDefault(); });
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); });
+  document.addEventListener('keydown', function(e){
+    const key = String(e.key || '').toLowerCase();
+    if((e.ctrlKey || e.metaKey) && (key === 's' || key === 'u')) {
+      e.preventDefault();
+      return;
+    }
+    if((e.ctrlKey || e.metaKey) && key === 'p') {
+      e.preventDefault();
+      window.print();
+      return;
+    }
+    if(embedWrap.hidden) {
+      if(key === 'arrowleft') showPrev();
+      if(key === 'arrowright') showNext();
+      if(key === 'enter' && document.activeElement === pageInput) jumpToInput();
+      if((e.ctrlKey || e.metaKey) && key === '=') { e.preventDefault(); stepZoom(0.1); }
+      if((e.ctrlKey || e.metaKey) && key === '-') { e.preventDefault(); stepZoom(-0.1); }
+      if(key === 'm') { e.preventDefault(); toggleMarkMode(); }
+    }
+  });
+
+  prevBtn.addEventListener('click', showPrev);
+  nextBtn.addEventListener('click', showNext);
+  pageInput.addEventListener('change', jumpToInput);
+  pageInput.addEventListener('blur', jumpToInput);
+  zoomOutBtn.addEventListener('click', function(){ stepZoom(-0.1); });
+  zoomInBtn.addEventListener('click', function(){ stepZoom(0.1); });
+  fitBtn.addEventListener('click', function(){ isFitMode = true; zoomScale = 1; updateZoomUi(); queuePage(pageNum); });
+  zoomLabel.addEventListener('click', function(){ if(isFitMode){ zoomScale = 1; } else { zoomScale = Math.max(0.5, Math.min(3, zoomScale + 0.25)); } isFitMode = false; updateZoomUi(); queuePage(pageNum); });
+  downloadBtn.addEventListener('click', downloadPdf);
+  markToggleBtn.addEventListener('click', toggleMarkMode);
+  toolPenBtn.addEventListener('click', function(){ setTool('pen'); });
+  toolHighlighterBtn.addEventListener('click', function(){ setTool('highlighter'); });
+  eraserBtn.addEventListener('click', function(){ setTool('eraser'); });
+  clearPageBtn.addEventListener('click', clearCurrentPageMarks);
+
+  annotationCanvas.addEventListener('pointerdown', onPointerDown);
+  annotationCanvas.addEventListener('pointermove', onPointerMove);
+  annotationCanvas.addEventListener('pointerup', onPointerUp);
+  annotationCanvas.addEventListener('pointerleave', onPointerUp);
+  annotationCanvas.addEventListener('pointercancel', onPointerUp);
+
+  if(!rawPdfUrl){
+    setStatus('Missing PDF file link', true);
+    toggleToolAvailability(false);
+    return;
+  }
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  loadDocCache();
+  updateToolUi();
+  updateZoomUi();
+  loadPdf();
+
+  let resizeTimer = null;
+  window.addEventListener('resize', function(){
+    if(!pdfDoc || !embedWrap.hidden) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){ queuePage(pageNum); }, 120);
+  });
+
+  function setStatus(msg, isError){
+    statusEl.textContent = msg;
+    statusEl.classList.toggle('error', !!isError);
+  }
+
+  function createDocId(input){
+    let hash = 0;
+    const text = String(input || '');
+    for(let i = 0; i < text.length; i++) hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    return Math.abs(hash).toString(36);
+  }
+
+  function storageKey(){ return STORAGE_PREFIX + docId; }
+
+  function loadDocCache(){
+    try {
+      const raw = localStorage.getItem(storageKey());
+      const parsed = raw ? JSON.parse(raw) : null;
+      if(parsed && parsed.pages && typeof parsed.pages === 'object') docCache = parsed;
+    } catch (err) {}
+    syncSaveChip('Marks saved on this device');
+  }
+
+  function saveDocCache(message){
+    docCache.updatedAt = Date.now();
+    try { localStorage.setItem(storageKey(), JSON.stringify(docCache)); }
+    catch (err) {}
+    syncSaveChip(message || 'Saved');
+  }
+
+  function syncSaveChip(text){
+    saveStateChip.textContent = text || 'Saved';
+    saveStateChip.classList.add('saved');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){ saveStateChip.classList.remove('saved'); saveStateChip.textContent = 'Marks saved on this device'; }, 1400);
+  }
+
+  function getDriveFileId(input){
+    const raw = String(input || '').trim();
+    if(!raw) return '';
+    const fileMatch = raw.match(/\/file\/d\/([^\/?#]+)/i);
+    if(fileMatch) return fileMatch[1];
+    try {
+      const u = new URL(raw);
+      if(u.hostname.includes('drive.google.com')) return u.searchParams.get('id') || '';
+    } catch (err) {}
+    return '';
+  }
+
+  function buildPdfJsUrl(input){
+    const raw = String(input || '').trim();
+    if(!raw) return '';
+    const driveId = getDriveFileId(raw);
+    if(driveId) return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(driveId);
+    return raw;
+  }
+
+  function buildEmbedUrl(input){
+    const raw = String(input || '').trim();
+    const driveId = getDriveFileId(raw);
+    if(driveId) return 'https://drive.google.com/file/d/' + encodeURIComponent(driveId) + '/preview';
+    return 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(raw);
+  }
+
+  function downloadPdf(){
+    const href = buildPdfJsUrl(rawPdfUrl);
+    if(!href) return;
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.download = (title || 'pdf-note').replace(/[^a-z0-9._-]+/gi, '_') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function showEmbedMode(message){
+    canvasWrap.hidden = true;
+    embedWrap.hidden = false;
+    pageNavGroup.classList.add('pdf-nav-disabled');
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    pageInput.disabled = true;
+    pageJumpWrap.title = 'Page buttons are unavailable in preview mode';
+    embedFrame.src = buildEmbedUrl(rawPdfUrl);
+    toggleToolAvailability(false);
+    setStatus(message || 'Preview mode enabled', false);
+  }
+
+  function toggleToolAvailability(enabled){
+    [zoomOutBtn, zoomInBtn, fitBtn, markToggleBtn, toolPenBtn, toolHighlighterBtn, eraserBtn, clearPageBtn].forEach(function(el){ el.disabled = !enabled; });
+  }
+
+  function clampPage(n){
+    if(!pdfDoc) return 1;
+    n = Number(n) || 1;
+    return Math.max(1, Math.min(pdfDoc.numPages, n));
+  }
+
+  function getDisplayZoomPercent(){
+    const value = isFitMode ? fitScale : zoomScale * fitScale;
+    return Math.max(10, Math.round(value * 100));
+  }
+
+  function updateZoomUi(){
+    zoomLabel.textContent = getDisplayZoomPercent() + '%';
+    fitBtn.classList.toggle('active', isFitMode);
+  }
+
+  function updateToolUi(){
+    markToggleBtn.textContent = markMode ? 'Mark On' : 'Mark Off';
+    markToggleBtn.classList.toggle('active', markMode);
+    toolPenBtn.classList.toggle('active', currentTool === 'pen');
+    toolHighlighterBtn.classList.toggle('active', currentTool === 'highlighter');
+    eraserBtn.classList.toggle('active', currentTool === 'eraser');
+    annotationCanvas.classList.toggle('marking-enabled', markMode);
+  }
+
+  function updateNav(){
+    const total = pdfDoc ? pdfDoc.numPages : 1;
+    pageInput.value = String(pageNum);
+    pageInput.max = String(total);
+    pageTotalText.textContent = '/ ' + total;
+    prevBtn.disabled = pageNum <= 1;
+    nextBtn.disabled = pageNum >= total;
+    updateZoomUi();
+  }
+
+  async function renderPage(num){
+    if(!pdfDoc) return;
+    rendering = true;
+    const myToken = ++renderToken;
+    const safeNum = clampPage(num);
+    pageNum = safeNum;
+    updateNav();
+    setStatus('Rendering page ' + safeNum + ' of ' + pdfDoc.numPages + '…', false);
+
+    try {
+      const page = await pdfDoc.getPage(safeNum);
+      if(myToken !== renderToken) return;
+      const stageWidth = Math.max(Math.min(shell.clientWidth - (window.innerWidth <= 760 ? 8 : 32), 1180), 260);
+      const rawViewport = page.getViewport({ scale: 1 });
+      fitScale = Math.max(0.4, Math.min((stageWidth - 16) / rawViewport.width, 2.4));
+      const appliedScale = isFitMode ? fitScale : fitScale * zoomScale;
+      const viewport = page.getViewport({ scale: appliedScale });
+      currentViewport = viewport;
+      const outputScale = Math.max(window.devicePixelRatio || 1, 1);
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = Math.floor(viewport.width) + 'px';
+      canvas.style.height = Math.floor(viewport.height) + 'px';
+      annotationCanvas.width = canvas.width;
+      annotationCanvas.height = canvas.height;
+      annotationCanvas.style.width = canvas.style.width;
+      annotationCanvas.style.height = canvas.style.height;
+      canvasStage.style.width = canvas.style.width;
+      canvasStage.style.height = canvas.style.height;
+      clearMarksCanvas();
+
+      await page.render({
+        canvasContext: pdfCtx,
+        viewport,
+        transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+      }).promise;
+      if(myToken !== renderToken) return;
+
+      redrawAnnotationCanvas();
+      setStatus(title + ' • Page ' + safeNum + ' of ' + pdfDoc.numPages, false);
+      updateToolUi();
+      updateZoomUi();
+    } catch (err) {
+      console.error(err);
+      setStatus('Failed to render PDF page', true);
+    } finally {
+      rendering = false;
+      if(pendingPage !== null){
+        const next = pendingPage;
+        pendingPage = null;
+        renderPage(next);
+      }
+    }
+  }
+
+  function queuePage(num){
+    const safeNum = clampPage(num);
+    if(rendering) pendingPage = safeNum;
+    else renderPage(safeNum);
+  }
+
+  function showPrev(){ if(pdfDoc && pageNum > 1) queuePage(pageNum - 1); }
+  function showNext(){ if(pdfDoc && pageNum < pdfDoc.numPages) queuePage(pageNum + 1); }
+  function jumpToInput(){ if(pdfDoc) queuePage(pageInput.value); }
+
+  function stepZoom(amount){
+    if(!pdfDoc) return;
+    isFitMode = false;
+    zoomScale = Math.max(0.45, Math.min(3.2, Number((zoomScale + amount).toFixed(2))));
+    updateZoomUi();
+    queuePage(pageNum);
+  }
+
+  function toggleMarkMode(){
+    if(embedWrap.hidden === false) return;
+    markMode = !markMode;
+    updateToolUi();
+    setStatus(markMode ? 'Mark mode on • Draw on this page. Marks save on this device.' : (title + ' • Page ' + pageNum + ' of ' + (pdfDoc ? pdfDoc.numPages : 1)), false);
+  }
+
+  function setTool(tool){
+    currentTool = tool;
+    updateToolUi();
+  }
+
+  function getPageMarks(){
+    const key = String(pageNum);
+    if(!Array.isArray(docCache.pages[key])) docCache.pages[key] = [];
+    return docCache.pages[key];
+  }
+
+  function onPointerDown(e){
+    if(!markMode || !currentViewport) return;
+    e.preventDefault();
+    annotationCanvas.setPointerCapture(e.pointerId);
+    isDrawing = true;
+    const pt = pointerToNorm(e);
+    currentStroke = {
+      tool: currentTool,
+      points: [pt]
+    };
+    if(currentTool === 'eraser'){
+      eraseNearby(pt);
+      redrawAnnotationCanvas();
+      saveDocCache('Page updated');
+      currentStroke = null;
+    } else {
+      drawStroke(currentStroke);
+    }
+  }
+
+  function onPointerMove(e){
+    if(!isDrawing || !currentStroke || !markMode) return;
+    e.preventDefault();
+    const pt = pointerToNorm(e);
+    currentStroke.points.push(pt);
+    redrawAnnotationCanvas();
+    drawStroke(currentStroke);
+  }
+
+  function onPointerUp(e){
+    if(!isDrawing) return;
+    if(markMode && currentStroke && currentStroke.points && currentStroke.points.length){
+      getPageMarks().push(currentStroke);
+      saveDocCache('Page mark saved');
+    }
+    isDrawing = false;
+    currentStroke = null;
+    redrawAnnotationCanvas();
+  }
+
+  function pointerToNorm(e){
+    const rect = annotationCanvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+    return {
+      x: rect.width ? +(x / rect.width).toFixed(5) : 0,
+      y: rect.height ? +(y / rect.height).toFixed(5) : 0
+    };
+  }
+
+  function toCanvasPoint(pt){
+    return {
+      x: pt.x * annotationCanvas.width,
+      y: pt.y * annotationCanvas.height
+    };
+  }
+
+  function clearMarksCanvas(){
+    markCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+  }
+
+  function redrawAnnotationCanvas(){
+    clearMarksCanvas();
+    getPageMarks().forEach(drawStroke);
+  }
+
+  function drawStroke(stroke){
+    if(!stroke || !Array.isArray(stroke.points) || !stroke.points.length) return;
+    const cfg = TOOL_CONFIG[stroke.tool] || TOOL_CONFIG.pen;
+    markCtx.save();
+    if(stroke.tool === 'eraser'){
+      markCtx.globalCompositeOperation = 'destination-out';
+      markCtx.strokeStyle = cfg.color;
+      markCtx.fillStyle = cfg.color;
+    } else {
+      markCtx.globalCompositeOperation = 'source-over';
+      markCtx.strokeStyle = cfg.color;
+      markCtx.fillStyle = cfg.color;
+      markCtx.globalAlpha = cfg.alpha;
+    }
+    markCtx.lineCap = 'round';
+    markCtx.lineJoin = 'round';
+    markCtx.lineWidth = cfg.lineWidth * Math.max((annotationCanvas.width / Math.max(parseFloat(annotationCanvas.style.width) || annotationCanvas.width, 1)), 1);
+    const first = toCanvasPoint(stroke.points[0]);
+    markCtx.beginPath();
+    markCtx.moveTo(first.x, first.y);
+    if(stroke.points.length === 1){
+      markCtx.arc(first.x, first.y, markCtx.lineWidth / 2, 0, Math.PI * 2);
+      markCtx.fill();
+    } else {
+      for(let i = 1; i < stroke.points.length; i++){
+        const p = toCanvasPoint(stroke.points[i]);
+        markCtx.lineTo(p.x, p.y);
+      }
+      markCtx.stroke();
+    }
+    markCtx.restore();
+  }
+
+  function eraseNearby(pt){
+    const marks = getPageMarks();
+    const radius = 0.03;
+    docCache.pages[String(pageNum)] = marks.filter(function(stroke){
+      return !stroke.points.some(function(p){
+        const dx = p.x - pt.x;
+        const dy = p.y - pt.y;
+        return Math.sqrt(dx * dx + dy * dy) <= radius;
+      });
+    });
+  }
+
+  function clearCurrentPageMarks(){
+    if(!getPageMarks().length) return;
+    docCache.pages[String(pageNum)] = [];
+    redrawAnnotationCanvas();
+    saveDocCache('Page cleared');
+  }
+
+  async function loadPdf(){
+    const pdfUrl = buildPdfJsUrl(rawPdfUrl);
+    const isDrive = !!getDriveFileId(rawPdfUrl);
+    try {
+      setStatus('Loading PDF…', false);
+      pdfDoc = await pdfjsLib.getDocument({ url: pdfUrl, withCredentials: false }).promise;
+      toggleToolAvailability(true);
+      updateNav();
+      queuePage(pageNum);
+    } catch (err) {
+      console.error(err);
+      showEmbedMode(isDrive ? 'Opened in Google Drive preview mode' : 'Opened in preview mode');
+    }
+  }
+})();
+</script>
+</body>
+</html>

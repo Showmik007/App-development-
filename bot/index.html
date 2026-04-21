@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O Level AI Chatbot</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f3f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 450px;
+      height: 700px;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      background: #2563eb;
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .chat-header h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .chat-header p {
+      margin: 6px 0 0;
+      font-size: 13px;
+      opacity: 0.95;
+    }
+
+    .status-bar {
+      padding: 10px 14px;
+      font-size: 13px;
+      background: #eff6ff;
+      border-bottom: 1px solid #dbeafe;
+      color: #1e3a8a;
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      max-width: 82%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: #e5e7eb;
+      color: #111827;
+      border-bottom-left-radius: 4px;
+    }
+
+    .system {
+      align-self: center;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 13px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      max-width: 95%;
+      text-align: center;
+    }
+
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+      background: #fff;
+      padding: 10px;
+      gap: 8px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    .chat-input input:focus {
+      border-color: #2563eb;
+    }
+
+    .chat-input button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      padding: 0 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .chat-input button:hover {
+      background: #1d4ed8;
+    }
+
+    .chat-input button:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>O Level AI</h2>
+      <p>Google Sheets Chatbot</p>
+    </div>
+
+    <div class="status-bar" id="statusText">Checking dataset connection...</div>
+
+    <div class="chat-box" id="chatBox">
+      <div class="message bot">Hello 👋 Ask me something.</div>
+    </div>
+
+    <div class="chat-input">
+      <input type="text" id="userInput" placeholder="Type your message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbx62UaKONFeQj3YrH9Y9RwOmTAYf0cOa_IlMvo8T2ppzXbMu3sDhVctlPo93uMekIrcpA/exec";
+
+    const chatBox = document.getElementById("chatBox");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const statusText = document.getElementById("statusText");
+
+    function addMessage(text, sender) {
+      const msg = document.createElement("div");
+      msg.className = `message ${sender}`;
+      msg.textContent = text;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function addSystemMessage(text) {
+      const msg = document.createElement("div");
+      msg.className = "message system";
+      msg.textContent = text;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function checkConnection() {
+      statusText.textContent = "Checking dataset connection...";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "GET"
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+          statusText.textContent = "✅ Connected to dataset successfully";
+          addSystemMessage("Connected to Google Sheet dataset successfully.");
+        } else {
+          statusText.textContent = "⚠️ API responded, but dataset status is unclear";
+          addSystemMessage("API is reachable, but dataset response is unclear.");
+        }
+      } catch (error) {
+        console.error("Connection check failed:", error);
+        statusText.textContent = "❌ Not connected to dataset";
+        addSystemMessage("Could not connect to Google Sheet dataset. Check Apps Script deployment.");
+      }
+    }
+
+    async function sendMessage() {
+      const question = userInput.value.trim();
+      if (!question) return;
+
+      addMessage(question, "user");
+      userInput.value = "";
+      sendBtn.disabled = true;
+      statusText.textContent = "Sending message...";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({ question: question })
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const result = await response.json();
+        addMessage(result.answer || "No answer returned.", "bot");
+
+        if (result.status === "success") {
+          statusText.textContent = "✅ Connected to dataset successfully";
+        } else if (result.status === "not_found") {
+          statusText.textContent = "✅ Connected. Question saved to Unanswered";
+        } else {
+          statusText.textContent = "⚠️ Connected, but API returned an error";
+        }
+      } catch (error) {
+        console.error(error);
+        addMessage("Connection error. Please check your Apps Script deployment.", "bot");
+        statusText.textContent = "❌ Failed to connect to dataset";
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    userInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+
+    checkConnection();
+  </script>
+</body>
+</html>
